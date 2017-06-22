@@ -1,0 +1,159 @@
+%-----------------------------------------------------------------------
+% Beginning of article-template.tex
+%-----------------------------------------------------------------------
+%
+%    This is a template file for proceedings articles prepared with AMS
+%    author packages, for use with AMS-LaTeX.
+%
+%    Templates for various common text, math and figure elements are
+%    given following the \end{document} line.
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%    Remove any commented or uncommented macros you do not use.
+
+%    Replace amsproc by the name of the author package.
+\documentclass{amsart}
+
+%    If you need symbols beyond the basic set, uncomment this command.
+%\usepackage{amssymb}
+
+%    If your article includes graphics, uncomment this command.
+%\usepackage{graphicx}
+
+%    If the article includes commutative diagrams, ...
+%\usepackage[cmtip,all]{xy}
+
+%    Include other referenced packages here.
+% \usepackage{}
+\usepackage{hyperref}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{fancyvrb}
+\usepackage{amsmath}
+% See http://tex.stackexchange.com/questions/32051/variable-sized-such-that-pipe
+% For usage of /Set that depends on braket
+\usepackage{braket}
+% For showing images:
+% \usepackage{svg}
+% For showing text images:
+% \usepackage{pstricks}
+
+% For showing images:
+\usepackage{graphicx}
+% \usepackage{svg}
+
+%    Update the information and uncomment if AMS is not the copyright
+%    holder.
+%\copyrightinfo{2009}{American Mathematical Society}
+
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{example}[theorem]{Example}
+\newtheorem{xca}[theorem]{Exercise}
+
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+\numberwithin{equation}{section}
+
+\DeclareMathOperator*{\argmin}{arg\,min}
+\newcommand{\divides}{\mid}
+
+\begin{document}
+
+
+\title{Passerby messaging system}
+%    Only \author and \address are required; other information is
+%    optional.  Remove any unused author tags.
+
+%    author one information
+% \author[short version for running head]{name for top of paper}
+\author{real}
+% \address{freedomlayer}
+% \curraddr{}
+\email[real]{real@freedomlayer.org}
+\thanks{Freedomlayer research facility}
+
+%    author two information
+% \author{}
+% \address{}
+% \curraddr{}
+% \email{}
+% \thanks{}
+
+% \subjclass[2000]{Primary}
+%    The 2010 edition of the Mathematics Subject Classification is
+%    now available.  If you are citing a classification from the
+%    new scheme, use the following input coding instead.
+% See http://www.ams.org/msc/msc2010.html?t=05C30&btn=Current for explanation.
+\subjclass[2010]{Primary 05C30}
+
+\date{22.06.2017}
+\maketitle
+
+\begin{abstract}
+  Passerby is an experimental messaging system that allows real time anonymous
+  and encrypted messaging.
+  This document described the protocol being used in Passerby.
+
+\end{abstract}
+\section{Intro}
+% \subsection{Subsection}
+
+Consider a connected network of $n$ computers. Some pairs of computers have a
+direct connection between them. We want to be able to pass messages
+between any two computers on the network using the existing direct connections.
+
+Assuming that a message originates from some computer, at each stage the current
+computer passes the message to one of his neighbors. Eventually the message
+should arrive at its destination computer. We also assume that every computer
+on the network has only limited amount of memory, and hence can not comprehend
+the full structure of the network.
+
+We can think of the network structure as a simple graph, where vertices
+represent computers in the network. Two vertices in the graph have an edge
+between them if the two corresponding computers are directly connected.
+
+In this document we propose a distributed algorithm for routing in connected
+networks which is based on Chord's overlay structure \cite{chord-stoica}. Our
+design builds upon the work in \cite{pushing-chord-overlay,
+virtual-ring-routing}.
+
+% Explain about Chord? What is a DHT?
+
+Our main contribution is a new design to the overlay structure, and an analysis
+of the resulting overlay connectivity. We prove that our new design always
+results in a single connected overlay ring structure.
+
+
+
+% - Read about Moni Naor Know thy neighbor, and find an even faster routing in
+%   Chord. Learn how to prove it, and include the proof in this paper.
+
+%    Bibliographies can be prepared with BibTeX using amsplain,
+%    amsalpha, or (for "historical" overviews) natbib style.
+\bibliographystyle{amsplain}
+%    Insert the bibliography data here.
+\begin{thebibliography}{9}
+\bibitem{chord-stoica}
+Ion Stoica, Robert Morris, David Karger, M. Frans Kaashoek, Hari Balakrishnan
+\textit{Chord: A scalable Peer-to-peer Lookup Service for Internet Applications}
+% \\\texttt{http://www.math.ucsd.edu/\~{}ronspubs/81\_04\_small\_trees.pdf}
+
+\bibitem{pushing-chord-overlay}
+Thomas Fuhrmann, Pengfei Di, Kendy Kutzner, Curt Cramer
+\textit{Pushing Chord into the Underlay: Scalable Routing for Hybrid MANETs}
+
+\bibitem{virtual-ring-routing}
+  Matthew Caesar, Miguel Castro, Edmund B. Nightingale, Greg O'Shea, Antony Rowstron
+\textit{Virtual Ring Routing: Network Routing Inspired by DHTs}
+\\
+
+\end{thebibliography}
+
+\end{document}
+
