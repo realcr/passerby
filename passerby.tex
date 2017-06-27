@@ -139,9 +139,9 @@ following messages can be transferred:
 Initial handshake:
 \begin{enumerate}
   \item $LocalId(LocalId)$
-      -- First message sent. Introduces the $LocalId$ to the remote side.
+      First message sent. Introduces the $LocalId$ to the remote side.
   \item $SendEncKey(Enc_{RemoteId}(SendSymKey))$
-      -- Send the key used to encrypt the next messages.
+      Send the key used to encrypt the next messages.
 \end{enumerate}
 
 After the initial handshake, all messages are encrypted and MACed with the
@@ -161,11 +161,23 @@ follows:
 The following messages can be sent after the handshake, encrypted and MACed:
 
 \begin{enumerate}
-  \item $TimeTick(AggrRandom)$
-      -- A time tick, used for implementing distributed time.
   \item $UpdatedLandmarkPath(SignedPathToLandmark, TimestampsPath)$
-      -- Used both for new choice of landmark, or changes in the network layout.
-  \item 
+      Used both for new choice of landmark, or changes in the network layout.
+      Right after the handshake, this kind of message should be sent for all
+      landmarks.
+  \item $TimeTick(AggrRandom)$
+      A time tick, used for implementing distributed time.
+  \item $NetCoordMessage(RemoteNetCoord, RemoteId, NCMessage)$
+    Send a message to a remote node according to RemoteNetCoord.
+\end{enumerate}
+
+% TODO: Explain about the structure of NCMessage here.
+% Should include how to create and share symmetric encryption key.
+
+The following messages are used to maintain the DHT:
+\begin{enumerate}
+  \item $DHTFollow(Fingers)$
+  \item $ResponseFingers(Fingers)$
 \end{enumerate}
 
 % \subsection{Subsection}
