@@ -97,42 +97,79 @@
 
 \begin{abstract}
   Passerby is an experimental messaging system that allows real time anonymous
-  and encrypted messaging.
-  This document described the protocol being used in Passerby.
-
+  and encrypted messaging. This document describes the protocol being used in
+  Passerby.
 \end{abstract}
-\section{Intro}
+
+\section{Main goals}
+
+Main goals of the Passerby system:
+
+\begin{enumerate}
+  \item Passing messages between people with high probability of success.
+  \item Encrypting the messages passed between people.
+  \item Keeping a contact list.
+\end{enumerate}
+
+
+\section{Low level API messages}
+
+Possible messages to send to the Passerby router:
+\begin{enumerate}
+  \item $CreateChannel (remote_id)$
+  \item $SendMessage (remote_id, datagram_data)$
+  \item $CloseChannel (remote_id)$
+\end{enumerate}
+
+Possible messages to receive from the Passerby router:
+\begin{enumerate}
+  \item $MessageReceived (remote_id, datagram_data)$
+\end{enumerate}
+
+Node ids are of size 120 bits (15 bytes). They are a hash of a public key.
+
+\section{Operation of the Passerby router}
+
+\subsection{Messages between routers}
+
+The Passerby router has direct reliable TCP like connections to various nodes,
+implemented somehow. For any direct connection with a neighboring node, the
+following messages can be transferred:
+
+Initial handshake:
+\begin{enumerate}
+  \item $LocalId(LocalId)$
+      -- First message sent. Introduces the $LocalId$ to the remote side.
+  \item $SendEncKey(Enc_{RemoteId}(SendSymKey))$
+      -- Send the key used to encrypt the next messages.
+\end{enumerate}
+
+After the initial handshake, all messages are encrypted and MACed with the
+$SendSymKey$, with some padding added. The inner structure of a message is as
+follows:
+
+\begin{enumerate}
+  \item magic
+  \item length
+  \item Encrypted message
+    \begin{enumerate}
+      \item random padding
+      \item message
+    \end{enumerate}
+\end{enumerate}
+
+The following messages can be sent after the handshake, encrypted and MACed:
+
+\begin{enumerate}
+  \item $TimeTick(AggrRandom)$
+      -- A time tick, used for implementing distributed time.
+  \item $UpdatedLandmarkPath(SignedPathToLandmark, TimestampsPath)$
+      -- Used both for new choice of landmark, or changes in the network layout.
+  \item 
+\end{enumerate}
+
 % \subsection{Subsection}
 
-Consider a connected network of $n$ computers. Some pairs of computers have a
-direct connection between them. We want to be able to pass messages
-between any two computers on the network using the existing direct connections.
-
-Assuming that a message originates from some computer, at each stage the current
-computer passes the message to one of his neighbors. Eventually the message
-should arrive at its destination computer. We also assume that every computer
-on the network has only limited amount of memory, and hence can not comprehend
-the full structure of the network.
-
-We can think of the network structure as a simple graph, where vertices
-represent computers in the network. Two vertices in the graph have an edge
-between them if the two corresponding computers are directly connected.
-
-In this document we propose a distributed algorithm for routing in connected
-networks which is based on Chord's overlay structure \cite{chord-stoica}. Our
-design builds upon the work in \cite{pushing-chord-overlay,
-virtual-ring-routing}.
-
-% Explain about Chord? What is a DHT?
-
-Our main contribution is a new design to the overlay structure, and an analysis
-of the resulting overlay connectivity. We prove that our new design always
-results in a single connected overlay ring structure.
-
-
-
-% - Read about Moni Naor Know thy neighbor, and find an even faster routing in
-%   Chord. Learn how to prove it, and include the proof in this paper.
 
 %    Bibliographies can be prepared with BibTeX using amsplain,
 %    amsalpha, or (for "historical" overviews) natbib style.
