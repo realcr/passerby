@@ -138,8 +138,8 @@ following messages can be transferred:
 
 Initial handshake:
 \begin{enumerate}
-  \item $LocalId(LocalId)$
-      First message sent. Introduces the $LocalId$ to the remote side.
+  \item $LocalId(LocalShortId)$
+      First message sent. Introduces the $LocalShortId$ to the remote side.
   \item $SendEncKey(Enc_{RemoteId}(SendSymKey))$
       Send the key used to encrypt the next messages.
 \end{enumerate}
@@ -174,10 +174,15 @@ The following messages can be sent after the handshake, encrypted and MACed:
 % TODO: Explain about the structure of NCMessage here.
 % Should include how to create and share symmetric encryption key.
 
-The following messages are used to maintain the DHT:
+The following messages are used to maintain the DHT. They are sent with specific
+RemoteNetCoord and RemoteId values (Given to NetCoordMessage).
+
 \begin{enumerate}
+  \item $DHTRequestClosest(WantedShortId)$
+  \item $DHTResponseClosest(ClosestIds(Pairs of <ShortId, NetCoord>))$
   \item $DHTFollow(Fingers)$
-  \item $ResponseFingers(Fingers)$
+  \item $DHTResponseFingers(Fingers)$
+  \item $DHTFingerUpdate(Finger)$ - Send to all followers.
 \end{enumerate}
 
 % \subsection{Subsection}
