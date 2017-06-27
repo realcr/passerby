@@ -140,25 +140,9 @@ Initial handshake:
 \begin{enumerate}
   \item $LocalId(LocalShortId)$
       First message sent. Introduces the $LocalShortId$ to the remote side.
-  \item $SendEncKey(Enc_{RemoteId}(SendSymKey))$
-      Send the key used to encrypt the next messages.
 \end{enumerate}
 
-After the initial handshake, all messages are encrypted and MACed with the
-$SendSymKey$, with some padding added. The inner structure of a message is as
-follows:
-
-\begin{enumerate}
-  \item magic
-  \item length
-  \item Encrypted message
-    \begin{enumerate}
-      \item random padding
-      \item message
-    \end{enumerate}
-\end{enumerate}
-
-The following messages can be sent after the handshake, encrypted and MACed:
+The following messages can be sent after the handshake:
 
 \begin{enumerate}
   \item $UpdatedLandmarkPath(SignedPathToLandmark, TimestampsPath)$
@@ -167,26 +151,56 @@ The following messages can be sent after the handshake, encrypted and MACed:
       landmarks.
   \item $TimeTick(AggrRandom)$
       A time tick, used for implementing distributed time.
-  \item $NetCoordMessage(RemoteNetCoord, RemoteId, NCMessage)$
+  \item $NetCoordMessage(RemoteNetCoord, RemoteShortId, NCMessage)$
     Send a message to a remote node according to RemoteNetCoord.
 \end{enumerate}
 
 % TODO: Explain about the structure of NCMessage here.
 % Should include how to create and share symmetric encryption key.
 
-The following messages are used to maintain the DHT. They are sent with specific
-RemoteNetCoord and RemoteId values (Given to NetCoordMessage).
+The structure of an NCMessage(payload):
+\begin{enumerate}
+  \item magic
+  \item $Enc_{RemoteShortId}(SendSymKey)$ (Usually the same SendSymKey)
+  \item Encrypted message (By the symmetric key SendSymKey)
+    \begin{enumerate}
+      \item padding length (1 byte)
+      \item random padding
+      \item payload length (4 bytes)
+      \item payload
+    \end{enumerate}
+\end{enumerate}
+
+The following NCMessages are used to maintain channels to remote nodes:
 
 \begin{enumerate}
-  \item $DHTRequestClosest(WantedShortId)$
-  \item $DHTResponseClosest(ClosestIds(Pairs of <ShortId, NetCoord>))$
-  \item $DHTFollow(Fingers)$
-  \item $DHTResponseFingers(Fingers)$
-  \item $DHTFingerUpdate(Finger)$ - Send to all followers.
+  \item $ChanNetCoord(SenderNetCoord, RandNonce)$ Current network coordinate. Sent
+    periodically (By both sides of the channel) to maintain channel despite
+    drift of network coordinates. The receiving end of the channel should send
+    the exact same RandNonce, to prove that he can read the messages.
+  \item $ContentMessage(content)$
+    \begin{enumerate}
+      \item $Enc_{RemoteLongId}(ContentSendSymKey)$ Usually the same key
+      \item $Enc_{ContentSendSymKey}(payload)$
+    \end{enumerate}
+\end{enumerate}
+
+The following NCMessages are used to maintain the DHT. They are sent with specific
+RemoteNetCoord and RemoteShortId values (Given to NetCoordMessage).
+
+\begin{enumerate}
+  \item $DHTRequestClosest(TargetShortId)$
+  \item $DHTResponseClosest(ClosestIds(<ShortId, NetCoord>))$
+  \item $DHTRequestFingers(Fingers(<ShortId, NetCoord>))$
+  \item $DHTResponseFingers(Fingers(<ShortId, NetCoord>))$
 \end{enumerate}
 
 % TODO: How to make updating of fingers efficient?
-% Currently it seems to be either slow or very bandwitdth consuming.
+% Currently it seems to be either slow or very bandwidth consuming.
+% Possibly do it not very often? Every one minute?
+
+% Maybe we can avoid the DHT if we solve storing information in a random
+% network coordinate in the network.
 
 % \subsection{Subsection}
 
