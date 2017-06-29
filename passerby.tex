@@ -116,14 +116,14 @@ Main goals of the Passerby system:
 
 Possible messages to send to the Passerby router:
 \begin{enumerate}
-  \item $CreateChannel (remote_id)$
-  \item $SendMessage (remote_id, datagram_data)$
-  \item $CloseChannel (remote_id)$
+  \item $CreateChannel (remoteId)$
+  \item $SendMessage (remoteId, datagramData)$
+  \item $CloseChannel (remoteId)$
 \end{enumerate}
 
 Possible messages to receive from the Passerby router:
 \begin{enumerate}
-  \item $MessageReceived (remote_id, datagram_data)$
+  \item $MessageReceived (remoteId, datagramData)$
 \end{enumerate}
 
 Node ids are of size 120 bits (15 bytes). They are a hash of a public key.
@@ -139,7 +139,7 @@ following messages can be transferred.
 
 
 \begin{enumerate}
-  \item $LocalShortId(LocalShortId)$
+  \item $LocalId(LocalId)$
       Tell the neighbor about my local id. Should be the first message to be
       sent.
   \item $UpdatedLandmarkPath(SignedPathToLandmark, TimestampsPath)$
@@ -149,19 +149,19 @@ following messages can be transferred.
   \item $TimeTick(AggrRandom)$
       A time tick, used for implementing distributed time.
 
-  \item $StoreCoord(PseudoIdPublic, NetCoord, ShortId, Signature(By PseudoId))$
-  \item $RequestCoord(PseudoIdPublic, SenderNetCoord, SenderShortId)$
-  \item $ResponseCoord(PseudoIdPublic, NetCoord, ShortId , Signature(By PseudoId))$ 
+  \item $StoreCoord(NetCoord, Id, Timestamp, Signature(By Id))$
+  \item $RequestCoord(Id, SenderNetCoord, SenderShortId)$
+  \item $ResponseCoord(Id, NetCoord, Timestamp, Signature(By Id))$ 
 
-  \item $NetCoordMessage(RemoteNetCoord, RemoteShortId, NCMessage)$
+  \item $NetCoordMessage(RemoteNetCoord, RemoteId, NCMessage)$
     Send a message to a remote node according to RemoteNetCoord. Verify arrival
-    using RemoteShortId. This is an encrypted message.
+    using RemoteId. This is an encrypted message.
 \end{enumerate}
 
 The structure of an NCMessage (payload):
 \begin{enumerate}
   \item magic
-  \item $Enc_{RemoteShortId}(SendSymKey)$ (Usually the same SendSymKey)
+  \item $Enc_{RemoteId}(SendSymKey)$ (Usually the same SendSymKey)
   \item Encrypted message (By the symmetric key SendSymKey)
     \begin{enumerate}
       \item padding length (1 byte)
@@ -181,7 +181,7 @@ The following NCMessages are used to maintain channels to remote nodes:
 
   \item $ContentMessage(content)$
     \begin{enumerate}
-      \item $Enc_{RemoteLongId}(ContentSendSymKey)$ Usually the same key
+      \item $Enc_{RemoteId}(ContentSendSymKey)$ Usually the same key
       \item $Enc_{ContentSendSymKey}(payload)$
     \end{enumerate}
 
