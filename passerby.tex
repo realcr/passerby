@@ -180,10 +180,7 @@ The following NCMessages are used to maintain channels to remote nodes:
     the exact same RandNonce, to prove that he can read the messages.
 
   \item $ContentMessage(content)$
-    \begin{enumerate}
-      \item $Enc_{RemoteId}(ContentSendSymKey)$ Usually the same key
-      \item $Enc_{ContentSendSymKey}(payload)$
-    \end{enumerate}
+    Actual content message.
 
 \end{enumerate}
 
