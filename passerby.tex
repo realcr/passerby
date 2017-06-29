@@ -161,9 +161,12 @@ following messages can be transferred.
 The structure of an NCMessage (payload):
 \begin{enumerate}
   \item magic
-  \item $Enc_{RemoteId}(SendSymKey)$ (Usually the same SendSymKey)
+  \item Encrypted symmetric key 
+    $Enc_{RemoteId}(SendSymKey)$ (Usually the same SendSymKey)
+  \item Signature encrypted symmetric key with $LocalId$.
   \item Encrypted message (By the symmetric key SendSymKey)
     \begin{enumerate}
+      \item counter (To prevent replay)
       \item padding length (1 byte)
       \item random padding
       \item payload length (4 bytes)
