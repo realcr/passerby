@@ -134,31 +134,31 @@ Node ids are of size 120 bits (15 bytes). They are a hash of a public key.
 
 The Passerby router has direct reliable TCP like connections to various nodes,
 implemented somehow. For any direct connection with a neighboring node, the
-following messages can be transferred:
+following messages can be transferred.
 
-Initial handshake:
-\begin{enumerate}
-  \item $LocalId(LocalShortId)$
-      First message sent. Introduces the $LocalShortId$ to the remote side.
-\end{enumerate}
 
-The following messages can be sent after the handshake:
 
 \begin{enumerate}
+  \item $LocalShortId(LocalShortId)$
+      Tell the neighbor about my local id. Should be the first message to be
+      sent.
   \item $UpdatedLandmarkPath(SignedPathToLandmark, TimestampsPath)$
       Used both for new choice of landmark, or changes in the network layout.
-      Right after the handshake, this kind of message should be sent for all
-      landmarks.
+      In the beginning of connection, this message should be sent for all known
+      landmarks. 
   \item $TimeTick(AggrRandom)$
       A time tick, used for implementing distributed time.
+
+  \item $StoreCoord(PseudoIdPublic, NetCoord, ShortId, Signature(By PseudoId))$
+  \item $RequestCoord(PseudoIdPublic, SenderNetCoord, SenderShortId)$
+  \item $ResponseCoord(PseudoIdPublic, NetCoord, ShortId , Signature(By PseudoId)))$ 
+
   \item $NetCoordMessage(RemoteNetCoord, RemoteShortId, NCMessage)$
-    Send a message to a remote node according to RemoteNetCoord.
+    Send a message to a remote node according to RemoteNetCoord. Verify arrival
+    using RemoteShortId. This is an encrypted message.
 \end{enumerate}
 
-% TODO: Explain about the structure of NCMessage here.
-% Should include how to create and share symmetric encryption key.
-
-The structure of an NCMessage(payload):
+The structure of an NCMessage (payload):
 \begin{enumerate}
   \item magic
   \item $Enc_{RemoteShortId}(SendSymKey)$ (Usually the same SendSymKey)
@@ -178,29 +178,33 @@ The following NCMessages are used to maintain channels to remote nodes:
     periodically (By both sides of the channel) to maintain channel despite
     drift of network coordinates. The receiving end of the channel should send
     the exact same RandNonce, to prove that he can read the messages.
+
   \item $ContentMessage(content)$
     \begin{enumerate}
       \item $Enc_{RemoteLongId}(ContentSendSymKey)$ Usually the same key
       \item $Enc_{ContentSendSymKey}(payload)$
     \end{enumerate}
+
 \end{enumerate}
 
-The following NCMessages are used to maintain the DHT. They are sent with specific
-RemoteNetCoord and RemoteShortId values (Given to NetCoordMessage).
+ %% The following NCMessages are used to maintain the DHT. They are sent with specific
+ %% RemoteNetCoord and RemoteShortId values (Given to NetCoordMessage).
 
-\begin{enumerate}
-  \item $DHTRequestClosest(TargetShortId)$
-  \item $DHTResponseClosest(ClosestIds(<ShortId, NetCoord>))$
-  \item $DHTRequestFingers(Fingers(<ShortId, NetCoord>))$
-  \item $DHTResponseFingers(Fingers(<ShortId, NetCoord>))$
-\end{enumerate}
+ %% \begin{enumerate}
+ %%   \item $DHTRequestClosest(TargetShortId)$
+ %%   \item $DHTResponseClosest(ClosestIds(<ShortId, NetCoord>))$
+ %%   \item $DHTRequestFingers(Fingers(<ShortId, NetCoord>))$
+ %%   \item $DHTResponseFingers(Fingers(<ShortId, NetCoord>))$
+ %% \end{enumerate}
 
-% TODO: How to make updating of fingers efficient?
-% Currently it seems to be either slow or very bandwidth consuming.
-% Possibly do it not very often? Every one minute?
+ %% TODO: How to make updating of fingers efficient?
+ %% Currently it seems to be either slow or very bandwidth consuming.
+ %% Possibly do it not very often? Every one minute?
 
-% Maybe we can avoid the DHT if we solve storing information in a random
-% network coordinate in the network.
+ %% Maybe we can avoid the DHT if we solve storing information in a random
+ %% network coordinate in the network.
+
+
 
 % \subsection{Subsection}
 
