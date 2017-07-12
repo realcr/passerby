@@ -116,9 +116,7 @@ Main goals of the Passerby system:
 
 Possible messages to send to the Passerby router:
 \begin{enumerate}
-  \item $CreateChannel (remoteId)$
   \item $SendMessage (remoteId, datagramData)$
-  \item $CloseChannel (remoteId)$
 \end{enumerate}
 
 Possible messages to receive from the Passerby router:
@@ -128,88 +126,107 @@ Possible messages to receive from the Passerby router:
 
 Node ids are of size 120 bits (15 bytes). They are a hash of a public key.
 
-\section{Operation of the Passerby router}
+\section{Operation of the Passerby routing engine}
 
-\subsection{Messages between routers}
+\subsection{Messages between routing engines}
 
 The Passerby router has direct reliable TCP like connections to various nodes,
 implemented somehow. For any direct connection with a neighboring node, the
 following messages can be transferred.
 
-
-
 \begin{enumerate}
-  \item $LocalId(LocalId)$
-      Tell the neighbor about my local id. Should be the first message to be
-      sent.
-  \item $UpdatedLandmarkPath(SignedPathToLandmark, TimestampsPath)$
-      Used both for new choice of landmark, or changes in the network layout.
+  \item $UpdatedGlobalTowerPath(globalTowerNum, SignedPathFromTower)$
+      Used both for new choice of a global tower, or changes in the network layout.
       In the beginning of connection, this message should be sent for all known
-      landmarks. 
-  \item $TimeTick(AggrRandom)$
-      A time tick, used for implementing distributed time.
+      global towers. 
+      \[
+        globalTower,  timestamp                     \\
+        a_1,          sign[globalTower](a_1, prev)  \\
+        a_2,          sign[a_1](a_2, prev)          \\
+        \cdots                                      \\
+        a_k,          sign[a_k](a_{k-1}, prev)
+      \]
 
-  \item $StoreCoord(NetCoord, Id, Timestamp, Signature(By Id))$
-  \item $RequestCoord(Id, SenderNetCoord, SenderShortId)$
-  \item $ResponseCoord(Id, NetCoord, Timestamp, Signature(By Id))$ 
+  \item $UpdatedLocalTowerPath(localTowerColor, SignedPathFromTower)$
+      Used both for new choice of a local tower, or changes in the network
+      layout. In the beginning of connection, this message should be sent for
+      all known local towers. 
+      \[
+        localTower,   timestamp                     \\
+        a_1,          sign[localTower](a_1, prev)   \\
+        a_2,          sign[a_1](a_2, prev)          \\
+        \cdots                                      \\
+        a_k,          sign[a_{k-1}](a_k, prev)
+      \]
 
-  \item $NetCoordMessage(RemoteNetCoord, RemoteId, NCMessage)$
-    Send a message to a remote node according to RemoteNetCoord. Verify arrival
-    using RemoteId. This is an encrypted message.
+  \item $RegisterLocalTower(SignedPathToTower)$
+      A node registers with a local tower.
+      \[
+        nodeId,       timestamp                   \\
+        a_1,          sign[nodeId](a_1, prev)    \\
+        a_2,          sign[a_1](a_2, prev)        \\
+        \cdots                                    \\
+        localTower,   sign[a_{k-1}](localTower, prev)
+      \]
+      The local tower will keep knowledge of paths to all nodes in the given
+      chain of signatures.
+
+
+  \item $SendMessageLocalTower(destNodeId, content)$
+    Send a message with given content to a destination id.
+    This message will be first passed to the local Tower. The towers will then
+    handle the messages delivery.
+    This message originates at some node and arrives at a local tower.
+
+  \item $MessageReceivedLocalTower(NodeIdPath, content)$
+    A message received through the local tower with given content.
+    IdPath is a list of Ids that show how to route the message to the correct
+    id (According to the knowledge of the local tower).
+    This message originates at a local tower and arrives at the relevant node.
+
+  % \item $TimeTick(AggrRandom)$
+  %     A time tick, used for implementing distributed time.
+  % We will probably use usual time for this proof of concept.
+
 \end{enumerate}
 
-The structure of an NCMessage (payload):
+\subsection{Messages between Towers}
+
+The towers are the mechanism used for long range routing of messages.
+Each tower should know the location of all the other towers, to be able to route
+messages quickly between towers.
+
 \begin{enumerate}
-  \item magic
-  \item Encrypted symmetric key 
-    $Enc_{RemoteId}(SendSymKey)$ (Usually the same SendSymKey)
-  \item Signature encrypted symmetric key with $LocalId$.
-  \item Encrypted message (By the symmetric key SendSymKey)
-    \begin{enumerate}
-      \item counter (To prevent replay)
-      \item padding length (1 byte)
-      \item random padding
-      \item payload length (4 bytes)
-      \item payload
-    \end{enumerate}
+  \item $TowerUpdatedTower(SignedPathFromTower)$
+  \item $TowerLookupRequestId(RequesterTowerId, nodeId)$
+    Find out which tower is responsible for the node nodeId.
+
+  \item $TowerLookupResponseId(RequesterTowerId, nodeId, TowerIds)$
+    Respond with the list of towers that have responsibility for nodeId.
+
+  \item $TowerRouteMessage(destTowerId, destNodeId, content)$
+    Route a message between towers until it arrives at destTowerId.
+    (Then destTowerId will send a MessageReceivedLocalTower to destNodeId)
 \end{enumerate}
 
-The following NCMessages are used to maintain channels to remote nodes:
-
-\begin{enumerate}
-  \item $ChanNetCoord(SenderNetCoord, RandNonce)$ Current network coordinate. Sent
-    periodically (By both sides of the channel) to maintain channel despite
-    drift of network coordinates. The receiving end of the channel should send
-    the exact same RandNonce, to prove that he can read the messages.
-
-  \item $ContentMessage(content)$
-    Actual content message.
-
-\end{enumerate}
-
- % TODO: Return to DHT architecture for discovery.
- % Find a way to maintain the DHT with less communication:
- % Possibly sending only relevant fingers, instead of sending all known fingers.
- % Should prove that this idea works.
 
 
- %% The following NCMessages are used to maintain the DHT. They are sent with specific
- %% RemoteNetCoord and RemoteShortId values (Given to NetCoordMessage).
 
- %% \begin{enumerate}
- %%   \item $DHTRequestClosest(TargetShortId)$
- %%   \item $DHTResponseClosest(ClosestIds(<ShortId, NetCoord>))$
- %%   \item $DHTRequestFingers(Fingers(<ShortId, NetCoord>))$
- %%   \item $DHTResponseFingers(Fingers(<ShortId, NetCoord>))$
- %% \end{enumerate}
-
- %% TODO: How to make updating of fingers efficient?
- %% Currently it seems to be either slow or very bandwidth consuming.
- %% Possibly do it not very often? Every one minute?
-
- %% Maybe we can avoid the DHT if we solve storing information in a random
- %% network coordinate in the network.
-
+% The structure of an NCMessage (payload):
+% \begin{enumerate}
+%   \item magic
+%   \item Encrypted symmetric key 
+%     $Enc_{RemoteId}(SendSymKey)$ (Usually the same SendSymKey)
+%   \item Signature encrypted symmetric key with $LocalId$.
+%   \item Encrypted message (By the symmetric key SendSymKey)
+%     \begin{enumerate}
+%       \item counter (To prevent replay)
+%       \item padding length (1 byte)
+%       \item random padding
+%       \item payload length (4 bytes)
+%       \item payload
+%     \end{enumerate}
+% \end{enumerate}
 
 
 % \subsection{Subsection}
