@@ -126,7 +126,16 @@ Possible messages to receive from the Passerby router:
 
 Node ids are of size 120 bits (15 bytes). They are a hash of a public key.
 
-\section{Operation of the Passerby routing engine}
+\section{Protocol routing messages}
+
+The structure of a message:
+
+\begin{enumerate}
+  \item magic
+  \item messageType
+  \item length (of payload, in bytes)
+  \item payload
+\end{enumerate}
 
 \subsection{Messages between routing engines}
 
@@ -135,7 +144,7 @@ implemented somehow. For any direct connection with a neighboring node, the
 following messages can be transferred.
 
 \begin{enumerate}
-  \item $UpdatedGlobalTowerPath(globalTowerNum, SignedPathFromTower)$
+  \item $UpdatedGlobalTowerPath(towerColor, SignedPathFromTower)$
       Used both for new choice of a global tower, or changes in the network layout.
       In the beginning of connection, this message should be sent for all known
       global towers. 
@@ -147,7 +156,7 @@ following messages can be transferred.
         a_k,          sign[a_k](a_{k-1}, prev)
       \]
 
-  \item $UpdatedLocalTowerPath(localTowerColor, SignedPathFromTower)$
+  \item $UpdatedLocalTowerPath(towerColor, towerIndex, SignedPathFromTower)$
       Used both for new choice of a local tower, or changes in the network
       layout. In the beginning of connection, this message should be sent for
       all known local towers. 
@@ -159,7 +168,7 @@ following messages can be transferred.
         a_k,          sign[a_{k-1}](a_k, prev)
       \]
 
-  \item $RegisterLocalTower(SignedPathToTower)$
+  \item $RegisterLocalTower(towerColor, SignedPathToTower)$
       A node registers with a local tower.
       \[
         nodeId,       timestamp                   \\
@@ -172,11 +181,11 @@ following messages can be transferred.
       chain of signatures.
 
 
-  \item $SendMessageLocalTower(destNodeId, content)$
+  \item $SendMessageLocalTower(towerColor, destNodeId, content)$
     Send a message with given content to a destination id.
-    This message will be first passed to the local Tower. The towers will then
-    handle the messages delivery.
-    This message originates at some node and arrives at a local tower.
+    This message will be first passed to the closest local Tower of color
+    towerColor. The towers will then handle the messages delivery. This message
+    originates at some node and arrives at a local tower.
 
   \item $MessageReceivedLocalTower(NodeIdPath, content)$
     A message received through the local tower with given content.
@@ -184,11 +193,8 @@ following messages can be transferred.
     id (According to the knowledge of the local tower).
     This message originates at a local tower and arrives at the relevant node.
 
-  % \item $TimeTick(AggrRandom)$
-  %     A time tick, used for implementing distributed time.
-  % We will probably use usual time for this proof of concept.
-
 \end{enumerate}
+
 
 \subsection{Messages between Towers}
 
@@ -197,14 +203,22 @@ Each tower should know the location of all the other towers, to be able to route
 messages quickly between towers.
 
 \begin{enumerate}
-  \item $TowerUpdatedTower(SignedPathFromTower)$
-  \item $TowerLookupRequestId(RequesterTowerId, nodeId)$
+  \item $PathFromTowerLocal(destTowerColor, originTowerColor, originTowerIndex, 
+    SignedPathFromTower)$
+    A path from remote local tower, sent to the closest tower of color destTowerColor.
+
+  \item $PathFromTowerGlobal(originTowerColor, SignedPathFromTower)$
+    A path from remote global tower, sent as a broadcast to all the nodes in the
+    network.
+
+  \item $LookupIdRequest(RequesterTowerColor, RequesterTowerIndex, nodeId)$
     Find out which tower is responsible for the node nodeId.
 
-  \item $TowerLookupResponseId(RequesterTowerId, nodeId, TowerIds)$
+  \item $LookupIdResponse(RequesterTowerColor, RequesterTowerIndex, nodeId, 
+    [(TowerColor, TowerId)])$
     Respond with the list of towers that have responsibility for nodeId.
 
-  \item $TowerRouteMessage(destTowerId, destNodeId, content)$
+  \item $RouteMessage(destTowerColor, destTowerIndex, destNodeId, content)$
     Route a message between towers until it arrives at destTowerId.
     (Then destTowerId will send a MessageReceivedLocalTower to destNodeId)
 \end{enumerate}
