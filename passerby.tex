@@ -144,18 +144,6 @@ implemented somehow. For any direct connection with a neighboring node, the
 following messages can be transferred.
 
 \begin{enumerate}
-  \item $UpdatedGlobalTowerPath(towerColor, SignedPathFromTower)$
-      Used both for new choice of a global tower, or changes in the network layout.
-      In the beginning of connection, this message should be sent for all known
-      global towers. 
-      \[
-        globalTower,  timestamp                     \\
-        a_1,          sign[globalTower](a_1, prev)  \\
-        a_2,          sign[a_1](a_2, prev)          \\
-        \cdots                                      \\
-        a_k,          sign[a_k](a_{k-1}, prev)
-      \]
-
   \item $UpdatedLocalTowerPath(towerColor, towerIndex, SignedPathFromTower)$
       Used both for new choice of a local tower, or changes in the network
       layout. In the beginning of connection, this message should be sent for
@@ -207,10 +195,6 @@ messages quickly between towers.
     SignedPathFromTower)$
     A path from remote local tower, sent to the closest tower of color destTowerColor.
 
-  \item $PathFromTowerGlobal(originTowerColor, SignedPathFromTower)$
-    A path from remote global tower, sent as a broadcast to all the nodes in the
-    network.
-
   \item $LookupIdRequest(RequesterTowerColor, RequesterTowerIndex, nodeId)$
     Find out which tower is responsible for the node nodeId.
 
@@ -234,7 +218,9 @@ form. Given the current time (in seconds since epoch), $time$, we define:
 $tcolor(color, time) := ((time / timeBlock) + color) / numColors$
 
 We choose timeBlock to be 900 seconds, which are 15 minutes. We also choose
-$num_colors = 8$, and therefore $color \in [numColors] = [8]$.
+$numColors$ to be the first power of $2$ that is greater or equal than
+$2\cdot\log(\sqrt(n))$, assuming that $n$ is the amount of nodes in the network. 
+(Chosen for connectivity of towers). $color \in [numColors]$.
 
 For every passage of $timeBlock$, the tcolor of only one color changes. In other
 words, given some time $t_0$ there is some color $c_0$ such that $tcolor(c_0,t_0) +
@@ -257,22 +243,16 @@ minimizes the value of $towerNodeMatch(nodeId, c, i, time)$ (Considered as a
 number in big endian notation). If there is a tie, the value $nodeId$ is used as
 a tie breaker.
 
-The global tower of color $c$ is the tower with color $c$ and index $0$.
-
 \subsection{Maintained data structures for every node}
 
 Every node should keep the following:
 
 \begin{enumerate}
   \item Local Towers (Closest for each color):
-    Distance and gateways (neighboring nodes).
-  \item Global Towers (For each color, with index = 0):
-    Distance and gateways (neighboring nodes).
+    Distance, gateways (neighboring nodes), towerNodeId
 \end{enumerate}
 
 Nodes that are towers also maintain the following:
-
-% TODO: Make sure that the things below are consistent:
 
 \begin{enumerate}
   \item For every registered node:
@@ -280,18 +260,19 @@ Nodes that are towers also maintain the following:
       \item Time of registration
       \item path to registered node.
     \end{enumerate}
-  \item For every tower (color, index > 0):
+
+  \item For every tower (color, index):
     \begin{enumerate}
       \item Distance to remote tower.
       \item Gateways to remote tower. Each gateway is a color of a local tower.
     \end{enumerate}
-  \item For every global tower (color, index = 0):
-    \begin{enumerate}
-      \item Distance to remote global tower.
-      \item Gateways to remote global tower. Each gateway is a color of a local tower.
-    \end{enumerate}
-
 \end{enumerate}
+
+
+\subsection{Algorithm for every node}
+
+
+
 
 
 % The structure of an NCMessage (payload):
