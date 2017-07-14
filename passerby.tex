@@ -160,14 +160,13 @@ following messages can be transferred.
       A node registers with a local tower.
       \[
         nodeId,       timestamp                   \\
-        a_1,          sign[nodeId](a_1, prev)    \\
+        a_1,          sign[nodeId](a_1, prev)     \\
         a_2,          sign[a_1](a_2, prev)        \\
         \cdots                                    \\
         localTower,   sign[a_{k-1}](localTower, prev)
       \]
       The local tower will keep knowledge of paths to all nodes in the given
       chain of signatures.
-
 
   \item $SendMessageLocalTower(towerColor, destNodeId, content)$
     Send a message with given content to a destination id.
@@ -272,14 +271,13 @@ Nodes that are towers also maintain the following:
 \subsection{Algorithm for every node}
 
 % TODO: Start with messages between routing engines.
-% Explain what to do when a messages is received.
+% Explain what to do when a message is received.
 
 % Explain any periodic behaviour, related to time, like registration.
 
-% If a longer path of registration passes throuh a node, the node will delay his
+% If a longer path of registration passes through a node, the node will delay his
 % next registration message, hoping that the same large message will pass again.
 % This is done to save bandwidth.
-
 
 
 % The structure of an NCMessage (payload):
