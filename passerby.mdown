@@ -1,6 +1,6 @@
 
 # Passerby messaging system
-By real@freedomlayer.org, of the freedomlayer research facility.
+By real@freedomlayer.org, freedomlayer research facility.
 15.07.2017
 
 ## Abstract
@@ -18,7 +18,7 @@ Main goals of the Passerby system:
 - Keeping a contact list.
 
 
-## Low level API messages
+## External API messages
 
 Possible messages to send to the Passerby router:
 
@@ -44,9 +44,9 @@ The structure of a message:
 
 The Passerby router has direct reliable TCP like connections to various nodes,
 implemented somehow. For any direct connection with a neighboring node, the
-following messages can be transferred.
+following messages can be transferred:
 
--   UpdatedLocalTowerPath(towerColor, towerIndex, SignedPathFromTower)
+-   **UpdatedLocalTowerPath**(towerColor, towerIndex, SignedPathFromTower)
     Used both for new choice of a local tower, or changes in the network
     layout. In the beginning of connection, this message should be sent for
     all known local towers. 
@@ -59,7 +59,7 @@ following messages can be transferred.
     a_k,          sign[a_{k-1}](a_k, prev)
     ```
 
--   RegisterLocalTower(towerColor, SignedPathToTower)
+-   **RegisterLocalTower**(towerColor, SignedPathToTower)
     A node registers with a local tower.
     ```
     nodeId,       timestamp              
@@ -71,19 +71,22 @@ following messages can be transferred.
     The local tower will keep knowledge of paths to all nodes in the given
     chain of signatures.
 
--   SendMessageLocalTower(towerColor, destNodeId, content)
+-   **SendMessageLocalTower**(towerColor, destNodeId, content)
     Send a message with given content to a destination id.
     This message will be first passed to the closest local Tower of color
     towerColor. The towers will then handle the messages delivery. This message
     originates at some node and arrives at a local tower.
 
--   MessageReceivedLocalTower(NodeIdPath, content)
+-   **MessageReceivedLocalTower**(NodeIdPath, encContent)
     A message received through the local tower with given content.
     IdPath is a list of Ids that show how to route the message to the correct
     id (According to the knowledge of the local tower).
     This message originates at a local tower and arrives at the relevant node.
 
-
+The structure for `encContent` in MessageReceivedLocalTower is as follows:
+- senderPublicKey (senderNodeId)
+- Enc{key=senderPrivateKey}(symmetricKey)
+- Enc{key=symmetricKey, nonce=currentTime}(datagramData)
 
 ## Messages between towers
 
@@ -91,18 +94,18 @@ The towers are the mechanism used for long range routing of messages.
 Each tower should know the location of all the other towers, to be able to route
 messages quickly between towers.
 
--   PathFromTowerLocal(destTowerColor, originTowerColor, originTowerIndex, 
+-   **PathFromTowerLocal**(destTowerColor, originTowerColor, originTowerIndex, 
     SignedPathFromTower)
     A path from remote local tower, sent to the closest tower of color destTowerColor.
 
--   LookupIdRequest(RequesterTowerColor, RequesterTowerIndex, nodeId)
+-   **LookupIdRequest**(RequesterTowerColor, RequesterTowerIndex, nodeId)
     Find out which tower is responsible for the node nodeId.
 
--   LookupIdResponse(RequesterTowerColor, RequesterTowerIndex, nodeId, 
+-   **LookupIdResponse**(RequesterTowerColor, RequesterTowerIndex, nodeId, 
     [(TowerColor, TowerId)])$
     Respond with the list of towers that have responsibility for nodeId.
 
--   RouteMessage(destTowerColor, destTowerIndex, destNodeId, content)
+-   **RouteMessage**(destTowerColor, destTowerIndex, destNodeId, encContent)
     Route a message between towers until it arrives at destTowerId.
     (Then destTowerId will send a MessageReceivedLocalTower to destNodeId)
 
@@ -117,7 +120,7 @@ tcolor(color, time) := ((time / timeBlock) + color) / numColors
 ```
 
 We choose timeBlock to be `900` seconds, which are 15 minutes. We also choose
-$numColors$ to be the first power of `2` that is greater or equal than
+`numColors` to be the first power of `2` that is greater or equal than
 `2 * log(sqrt(n))`, assuming that `n` is the amount of nodes in the network. 
 (Chosen for connectivity of towers). `0 <= color < numColors`.
 
@@ -129,11 +132,11 @@ words, given some time `t_0` there is some color `c_0` such that `tcolor(c_0,t_0
 Next we define:
 
 ```
-  h(color, index, time) := sha256("AA" | tcolor(color, time) | "BB" | color |
-    "CC" | index ) \\
+h(color, index, time) := sha256("AA" | tcolor(color, time) | 
+                            "BB" | color | "CC" | index )
 
-  towerNodeMatch(nodeId, color, index, time) := sha256("DD" |  h(color, index, time) | 
-    "EE" | sha256(nodeId))
+towerNodeMatch(nodeId, color, index, time) := sha256("DD" |  
+                    h(color, index, time) | "EE" | sha256(nodeId))
 ```
 
 
@@ -164,6 +167,22 @@ Nodes that are towers also maintain the following:
 
 ## Algorithm for every node
 
+The following represents an algorithm of operation for a node with node id
+myNodeId.
+
+
+Receipt of external SendMessage (remoteId, datagramData):
+-   Send a SendMessageLocalTower(towerColor, remoteId, datagramData),
+    where towerColor is a random color. (TODO: We might want to avoid the
+    currently replaced color).
+
+Receipt of MessageReceivedLocalTower(nodeIdPath, encContent)
+
+TODO: Continue here. Explain about caching for symmetric keys,
+and about decrypting the message. Explain about avoiding replays and choosing
+the nonce using the current time.
+
+
 TODO: Start with messages between routing engines.
 Explain what to do when a message is received.
 
@@ -172,5 +191,4 @@ Explain any periodic behaviour, related to time, like registration.
 If a longer path of registration passes through a node, the node will delay his
 next registration message, hoping that the same large message will pass again.
 This is done to save bandwidth.
-
 
