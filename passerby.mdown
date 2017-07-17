@@ -192,3 +192,12 @@ If a longer path of registration passes through a node, the node will delay his
 next registration message, hoping that the same large message will pass again.
 This is done to save bandwidth.
 
+
+TODO: **probes**: Add a mechanism to make sure that towers actually pass messages. Every
+node should sometimes send probes: Marked messages (Encrypted) sent through
+various towers. He then gets acks for those messages. This way a node can know
+which towers are the most reliable, and he will use mostly those towers. Towers
+that don't pass messages will get less and less messages.
+
+How to design the probe messages?
+
