@@ -48,8 +48,7 @@ following messages can be transferred:
 
 -   **UpdatedLocalTowerPath**(towerColor, towerIndex, SignedPathFromTower)
     Used both for new choice of a local tower, or changes in the network
-    layout. In the beginning of connection, this message should be sent for
-    all known local towers. 
+    layout. This message is sent periodically, originating from tower nodes.
 
     ```
     localTower,   timestamp                  
@@ -85,8 +84,8 @@ following messages can be transferred:
 
 The structure for `encContent` in MessageReceivedLocalTower is as follows:
 - senderPublicKey (senderNodeId)
-- Enc{key=senderPrivateKey}(symmetricKey)
-- Enc{key=symmetricKey, nonce=currentTime}(datagramData)
+- encSymmetricKey == Encrypt{key=senderPrivateKey}(symmetricKey)
+- encDatagramData == Encrypt{key=symmetricKey, nonce=random}(timestamp, datagramData)
 
 ## Messages between towers
 
@@ -145,24 +144,59 @@ minimizes the value of `towerNodeMatch(nodeId, c, i, time)` (Considered as a
 number in big endian notation). If there is a tie, the value $nodeId$ is used as
 a tie breaker.
 
+## Protocol constants
+
+- `SYM_KEY_CACHE_TIME = 30 minutes`: maximum amount of time an entry could be
+  kept in symKeyMap cache.
+
+- `MESSAGE_CACHE_TIME = 60 seconds`, the maximum amount of time an entry could
+  be kept in the messageCacheMap cache.
+
+- 
+
+
 ## Maintained data structures for every node
 
 Every node should keep the following:
 
 Information about local towers (Closest for each color):
-    - Distance
-    - Gateways (neighboring nodes)
-    - towerNodeId
+-   localTower[color].distance
+    Shortest known distance to this local tower.
+
+-   localTower[color].gateways 
+    A list of neighboring nodes.
+
+-   localTower[color].towerNodeId: 
+    The nodeId of the local tower.
+
+Cache for receiving encrypted messages:
+-   symKeyMap[senderNodeId] == (encSymmetricKey, symmetricKey) 
+
+With `SYM_KEY_CACHE_TIME`, maximum amount of time an entry could be kept in
+symKeyMap cache.
+
+Cache for message replay:
+-   messageCacheMap[encMsgHash] == timestamp
+
+With `MESSAGE_CACHE_TIME`, the maximum amount of time an entry could be kept in
+the messageCacheMap cache.
+
 
 Nodes that are towers also maintain the following:
 
 - For every registered node:
-    - Time of registration
-    - Path to registered node.
+    - registered[nodeId].registrationTime
+        Time of registration
+
+    - registered[nodeId].path
+        Path to registered node.
 
 -   For every tower (color, index):
-    - Distance to remote tower.
-    - Gateways to remote tower. Each gateway is a color of a local tower.
+    - tower[(color, index)].distance
+        Distance to remote tower.
+
+    - tower[(color, index)].gateways 
+        Gateways to remote tower. Each gateway is a color of a local tower.
 
 
 ## Algorithm for every node
@@ -170,18 +204,50 @@ Nodes that are towers also maintain the following:
 The following represents an algorithm of operation for a node with node id
 myNodeId.
 
-
 Receipt of external SendMessage (remoteId, datagramData):
--   Send a SendMessageLocalTower(towerColor, remoteId, datagramData),
-    where towerColor is a random color. (TODO: We might want to avoid the
-    currently replaced color).
+-   Pick a set of three random tower colors: rcolors.
+-   for towerColor in rcolors:
+    -   Send a SendMessageLocalTower(towerColor, remoteId, datagramData) to
+        a random gateway from the set localTower[towerColor].gateways.
 
-Receipt of MessageReceivedLocalTower(nodeIdPath, encContent)
 
-TODO: Continue here. Explain about caching for symmetric keys,
-and about decrypting the message. Explain about avoiding replays and choosing
-the nonce using the current time.
+Receipt of MessageReceivedLocalTower(nodeIdPath, encContent):
+-   if nodeIdPath != []
+    -   nextNode <-- nodeIdPath[-1]
+    -   Send a MessageReceivedLocalTower(nodeIdPath[:-1], encContent) to the
+        node nextNode.
+    -   return
 
+-   encMsgHash <-- sha256(encContent)
+-   if encMsgHash in messageCacheMap:
+    -   return
+
+-   symmetricKey <-- Decrypt{key=senderPublicKey}(encSymmetricKey)
+-   if encContent.senderPublicKey not in symKeyMap
+    -   symKeyMap[encContent.senderPublicKey] <--
+             (encContent.encSymmetricKey, symmetricKey)
+
+-   if encContent.encSymmetricKey != symKeyMap[encContent.senderPublicKey].encSymmetricKey:
+    - symKeyMap[encContent.senderPublicKey] <--
+        (encContent.encSymmetricKey, symmetricKey)
+
+-   timestamp, datagramData <-- Decrypt{key=symmetricKey}(encContent.encDatagramData)
+-   if Decrypt failed, return.
+
+-   If curTime - timestamp > `MESSAGE_CACHE_TIME`, return
+
+-   messageCacheMap[encMsgHash] <-- timestamp
+
+-   Send external MessageReceived(senderPublicKey, datagramData)
+
+
+
+Receipt of UpdatedLocalTowerPath(towerColor, towerIndex, SignedPathFromTower):
+
+
+
+
+## TODO area:
 
 TODO: Start with messages between routing engines.
 Explain what to do when a message is received.
