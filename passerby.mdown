@@ -46,41 +46,41 @@ The Passerby router has direct reliable TCP like connections to various nodes,
 implemented somehow. For any direct connection with a neighboring node, the
 following messages can be transferred:
 
--   **UpdatedLocalTowerPath**(towerColor, towerIndex, SignedPathFromTower)
-    Used both for new choice of a local tower, or changes in the network
-    layout. This message is sent periodically, originating from tower nodes.
+- **UpdatedLocalTowerPath**(towerColor, towerIndex, SignedPathFromTower)
+  Used both for new choice of a local tower, or changes in the network
+  layout. This message is sent periodically, originating from tower nodes.
 
-    ```
-    localTower,   timestamp                  
-    a_1,          sign[localTower](a_1, prev)
-    a_2,          sign[a_1](a_2, prev)       
-    \cdots                                   
-    a_k,          sign[a_{k-1}](a_k, prev)
-    ```
+  ```
+  localTower,   timestamp                  
+  a_1,          sign{localTower}(a_1, prev)
+  a_2,          sign{a_1}(a_2, prev)       
+  \cdots                                   
+  a_k,          sign{a_{k-1}}(a_k, prev)
+  ```
 
--   **RegisterLocalTower**(towerColor, SignedPathToTower)
-    A node registers with a local tower.
-    ```
-    nodeId,       timestamp              
-    a_1,          sign[nodeId](a_1, prev)
-    a_2,          sign[a_1](a_2, prev)   
-    \cdots                               
-    localTower,   sign[a_{k-1}](localTower, prev)
-    ```
-    The local tower will keep knowledge of paths to all nodes in the given
-    chain of signatures.
+- **RegisterLocalTower**(towerColor, SignedPathToTower)
+  A node registers with a local tower.
+  ```
+  nodeId,       timestamp              
+  a_1,          sign{nodeId}(a_1, prev)
+  a_2,          sign{a_1}(a_2, prev)   
+  \cdots                               
+  localTower,   sign{a_{k-1}}(localTower, prev)
+  ```
+  The local tower will keep knowledge of paths to all nodes in the given
+  chain of signatures.
 
--   **SendMessageLocalTower**(towerColor, destNodeId, content)
-    Send a message with given content to a destination id.
-    This message will be first passed to the closest local Tower of color
-    towerColor. The towers will then handle the messages delivery. This message
-    originates at some node and arrives at a local tower.
+- **SendMessageLocalTower**(towerColor, destNodeId, content)
+  Send a message with given content to a destination id.
+  This message will be first passed to the closest local Tower of color
+  towerColor. The towers will then handle the messages delivery. This message
+  originates at some node and arrives at a local tower.
 
--   **MessageReceivedLocalTower**(NodeIdPath, encContent)
-    A message received through the local tower with given content.
-    IdPath is a list of Ids that show how to route the message to the correct
-    id (According to the knowledge of the local tower).
-    This message originates at a local tower and arrives at the relevant node.
+- **MessageReceivedLocalTower**(NodeIdPath, encContent)
+  A message received through the local tower with given content.
+  IdPath is a list of Ids that show how to route the message to the correct
+  id (According to the knowledge of the local tower).
+  This message originates at a local tower and arrives at the relevant node.
 
 The structure for `encContent` in MessageReceivedLocalTower is as follows:
 - senderPublicKey (senderNodeId)
@@ -93,20 +93,20 @@ The towers are the mechanism used for long range routing of messages.
 Each tower should know the location of all the other towers, to be able to route
 messages quickly between towers.
 
--   **PathFromTowerLocal**(destTowerColor, originTowerColor, originTowerIndex, 
-    SignedPathFromTower)
-    A path from remote local tower, sent to the closest tower of color destTowerColor.
+- **PathFromTowerLocal**(destTowerColor, originTowerColor, originTowerIndex, 
+  SignedPathFromTower)
+  A path from remote local tower, sent to the closest tower of color destTowerColor.
 
--   **LookupIdRequest**(RequesterTowerColor, RequesterTowerIndex, nodeId)
-    Find out which tower is responsible for the node nodeId.
+- **LookupIdRequest**(RequesterTowerColor, RequesterTowerIndex, nodeId)
+  Find out which tower is responsible for the node nodeId.
 
--   **LookupIdResponse**(RequesterTowerColor, RequesterTowerIndex, nodeId, 
-    [(TowerColor, TowerId)])$
-    Respond with the list of towers that have responsibility for nodeId.
+- **LookupIdResponse**(RequesterTowerColor, RequesterTowerIndex, nodeId, 
+  [(TowerColor, TowerId)])$
+  Respond with the list of towers that have responsibility for nodeId.
 
--   **RouteMessage**(destTowerColor, destTowerIndex, destNodeId, encContent)
-    Route a message between towers until it arrives at destTowerId.
-    (Then destTowerId will send a MessageReceivedLocalTower to destNodeId)
+- **RouteMessage**(destTowerColor, destTowerIndex, destNodeId, encContent)
+  Route a message between towers until it arrives at destTowerId.
+  (Then destTowerId will send a MessageReceivedLocalTower to destNodeId)
 
 
 ## The towers selection functions
@@ -149,10 +149,11 @@ a tie breaker.
 - `SYM_KEY_CACHE_TIME = 30 minutes`: maximum amount of time an entry could be
   kept in symKeyMap cache.
 
-- `MESSAGE_CACHE_TIME = 60 seconds`, the maximum amount of time an entry could
+- `MESSAGE_CACHE_TIME = 1 minute`: the maximum amount of time an entry could
   be kept in the messageCacheMap cache.
 
-- 
+- `LOCAL_TOWER_EXPIRY = 1 minute`: The time it takes for knowledge of local
+  tower to expire.
 
 
 ## Maintained data structures for every node
@@ -160,23 +161,24 @@ a tie breaker.
 Every node should keep the following:
 
 Information about local towers (Closest for each color):
--   localTower[color].distance
-    Shortest known distance to this local tower.
+- localTower[color].distance
+Shortest known distance to this local tower.
 
--   localTower[color].gateways 
-    A list of neighboring nodes.
+- localTower[color].gateways 
+A list of neighboring nodes: (nodeId, timestamp)
 
--   localTower[color].towerNodeId: 
-    The nodeId of the local tower.
+- localTower[color].towerNodeId: 
+The nodeId of the local tower.
+
 
 Cache for receiving encrypted messages:
--   symKeyMap[senderNodeId] == (encSymmetricKey, symmetricKey) 
+- symKeyMap[senderNodeId] == (encSymmetricKey, symmetricKey) 
 
 With `SYM_KEY_CACHE_TIME`, maximum amount of time an entry could be kept in
 symKeyMap cache.
 
 Cache for message replay:
--   messageCacheMap[encMsgHash] == timestamp
+- messageCacheMap[encMsgHash] == timestamp
 
 With `MESSAGE_CACHE_TIME`, the maximum amount of time an entry could be kept in
 the messageCacheMap cache.
@@ -185,18 +187,19 @@ the messageCacheMap cache.
 Nodes that are towers also maintain the following:
 
 - For every registered node:
-    - registered[nodeId].registrationTime
-        Time of registration
+    - registered[nodeId].registrationTime 
+    Time of registration
 
     - registered[nodeId].path
-        Path to registered node.
+    Path to registered node.
 
--   For every tower (color, index):
+
+- For every tower (color, index):
     - tower[(color, index)].distance
-        Distance to remote tower.
+    Distance to remote tower.
 
     - tower[(color, index)].gateways 
-        Gateways to remote tower. Each gateway is a color of a local tower.
+    Gateways to remote tower. Each gateway is a color of a local tower.
 
 
 ## Algorithm for every node
@@ -204,46 +207,107 @@ Nodes that are towers also maintain the following:
 The following represents an algorithm of operation for a node with node id
 myNodeId.
 
-Receipt of external SendMessage (remoteId, datagramData):
--   Pick a set of three random tower colors: rcolors.
--   for towerColor in rcolors:
-    -   Send a SendMessageLocalTower(towerColor, remoteId, datagramData) to
-        a random gateway from the set localTower[towerColor].gateways.
+
+### Receipt of external SendMessage (remoteId, datagramData):
+- Pick a set of three random tower colors: rcolors.
+- for towerColor in rcolors:
+    - Send a SendMessageLocalTower(towerColor, remoteId, datagramData) to a
+      random gateway from the set localTower[towerColor].gateways.
 
 
-Receipt of MessageReceivedLocalTower(nodeIdPath, encContent):
--   if nodeIdPath != []
-    -   nextNode <-- nodeIdPath[-1]
-    -   Send a MessageReceivedLocalTower(nodeIdPath[:-1], encContent) to the
-        node nextNode.
-    -   return
+### Receipt of MessageReceivedLocalTower(nodeIdPath, encContent):
+- if nodeIdPath != []
+    - nextNode <-- nodeIdPath[-1]
+    - Send a MessageReceivedLocalTower(nodeIdPath[:-1], encContent) to the
+      node nextNode.
+    - return
 
--   encMsgHash <-- sha256(encContent)
--   if encMsgHash in messageCacheMap:
-    -   return
+- encMsgHash <-- sha256(encContent)
+- if encMsgHash in messageCacheMap:
+    - return
 
--   symmetricKey <-- Decrypt{key=senderPublicKey}(encSymmetricKey)
--   if encContent.senderPublicKey not in symKeyMap
-    -   symKeyMap[encContent.senderPublicKey] <--
+- symmetricKey <-- Decrypt{key=senderPublicKey}(encSymmetricKey)
+- if encContent.senderPublicKey not in symKeyMap
+    - symKeyMap[encContent.senderPublicKey] <--
              (encContent.encSymmetricKey, symmetricKey)
 
--   if encContent.encSymmetricKey != symKeyMap[encContent.senderPublicKey].encSymmetricKey:
+- if encContent.encSymmetricKey != symKeyMap[encContent.senderPublicKey].encSymmetricKey:
     - symKeyMap[encContent.senderPublicKey] <--
         (encContent.encSymmetricKey, symmetricKey)
 
--   timestamp, datagramData <-- Decrypt{key=symmetricKey}(encContent.encDatagramData)
--   if Decrypt failed, return.
+- timestamp, datagramData <-- Decrypt{key=symmetricKey}(encContent.encDatagramData)
+- if Decrypt failed, return.
 
--   If curTime - timestamp > `MESSAGE_CACHE_TIME`, return
+- if curTime - timestamp > `MESSAGE_CACHE_TIME`, return
 
--   messageCacheMap[encMsgHash] <-- timestamp
+- messageCacheMap[encMsgHash] <-- timestamp
 
--   Send external MessageReceived(senderPublicKey, datagramData)
+- Send external MessageReceived(senderPublicKey, datagramData)
 
 
+### Receipt of UpdatedLocalTowerPath(towerColor, towerIndex, SignedPathFromTower):
 
-Receipt of UpdatedLocalTowerPath(towerColor, towerIndex, SignedPathFromTower):
+- if curTime - SignedPathFromTower.timestamp > `LOCAL_TOWER_EXPIRY`
+    - return
 
+- Check all signatures. If any signature is invalid, return.
+- Verify that the last signature signs over myNodeId. Otherwise, return.
+
+- distance      <-- length of path.
+- gateway       <-- last nodeId on chain before myNodeId.
+- towerNodeId   <-- first nodeId on the path.
+- timestamp     <-- path timestamp.
+
+- Remove gateways from `localTower[towerColor].gateways` that are older than
+  `LOCAL_TOWER_EXPIRY`.
+
+- if len(localTower[towerColor].gateways) == 0:
+    - localTower[towerColor].distance       <-- 0
+    - localTower[towerColor].gateways       <-- {}
+    - localTower[towerColor].towerNodeId    <-- myNodeId
+
+- oldNodeMatch  <-- towerNodeMatch(localTower[towerColor].towerNodeId,
+                      towerColor, towerIndex, curTime)
+- newNodeMatch  <-- towerNodeMatch(towerNodeId,
+                      towerColor, towerIndex, curTime)
+
+- if oldNodeMatch > newNodeMatch:
+    - return
+
+- if oldNodeMatch < newNodeMatch:
+    localTower[towerColor].distance     <-- distance
+    localTower[towerColor].gateways     <-- set{(gateway, timestamp)}
+    localTower[towerColor].towerNodeId  <-- towerNodeId
+
+    - for neighborId in neighbors:
+        - send UpdatedLocalTowerPath(towerColor, towerIndex, SignedPathFromTower
+            + (neighborId, sign{myNodeId}(neighborId, prev)) )
+    - return
+
+// Here oldNodeMatch == newNodeMatch:
+
+- if distance > localTower[towerColor].distance:
+    - return
+
+- if distance < localTower[towerColor].distance:
+    - localTower[towerColor].distance       <-- distance
+    - localTower[towerColor].gateways       <-- set{(gateway, timestamp)}
+    - localTower[towerColor].towerNodeId    <-- towerNodeId
+
+    - for neighborId in neighbors:
+        - send UpdatedLocalTowerPath(towerColor, towerIndex, SignedPathFromTower
+            + (neighborId, sign{myNodeId}(neighborId, prev)) )
+    - return
+
+- if distance == localTower[towerColor].distance:
+    - localTower[towerColor].gateways.insert((gateway, timestamp))
+    - for neighborId in neighbors:
+        - send UpdatedLocalTowerPath(towerColor, towerIndex, SignedPathFromTower
+            + (neighborId, sign{myNodeId}(neighborId, prev)) )
+    - return
+
+
+### Receipt of RegisterLocalTower(towerColor, SignedPathToTower):
 
 
 
