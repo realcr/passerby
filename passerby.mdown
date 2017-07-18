@@ -46,7 +46,7 @@ The Passerby router has direct reliable TCP like connections to various nodes,
 implemented somehow. For any direct connection with a neighboring node, the
 following messages can be transferred:
 
-- **UpdatedLocalTowerPath**(towerColor, towerIndex, SignedPathFromTower)
+- **UpdatedLocalTowerPath**(towerColor, SignedPathFromTower)
   Used both for new choice of a local tower, or changes in the network
   layout. This message is sent periodically, originating from tower nodes.
 
@@ -90,23 +90,39 @@ The structure for `encContent` in MessageReceivedLocalTower is as follows:
 ## Messages between towers
 
 The towers are the mechanism used for long range routing of messages.
-Each tower should know the location of all the other towers, to be able to route
+Each tower should know the location of all other towers, to be able to route
 messages quickly between towers.
 
-- **PathFromTowerLocal**(destTowerColor, originTowerColor, originTowerIndex, 
-  SignedPathFromTower)
-  A path from remote local tower, sent to the closest tower of color destTowerColor.
+- **UpdatedTowerPath**(originTowerColor, originTowerId, SignedPathFromTower)
+  A message that is sent periodically from originTowerId. This message allows
+  all towers in the network to know a path to originTowerId.
+  This message is transferred using local tower based paths between towers.
 
-- **LookupIdRequest**(RequesterTowerColor, RequesterTowerIndex, nodeId)
+- **LookupIdRequest**(RequesterTowerColor, RequesterTowerId, nodeId)
   Find out which tower is responsible for the node nodeId.
 
-- **LookupIdResponse**(RequesterTowerColor, RequesterTowerIndex, nodeId, 
+- **LookupIdResponse**(RequesterTowerColor, RequesterTowerId, nodeId, 
   [(TowerColor, TowerId)])$
   Respond with the list of towers that have responsibility for nodeId.
 
-- **RouteMessage**(destTowerColor, destTowerIndex, destNodeId, encContent)
+- **RouteMessage**(destTowerColor, destTowerId, destNodeId, encContent)
   Route a message between towers until it arrives at destTowerId.
   (Then destTowerId will send a MessageReceivedLocalTower to destNodeId)
+
+## Protocol constants
+
+- `SYM_KEY_CACHE_TIME = 30 minutes`: maximum amount of time an entry could be
+  kept in symKeyMap cache.
+
+- `MESSAGE_CACHE_TIME = 1 minute`: the maximum amount of time an entry could
+  be kept in the messageCacheMap cache.
+
+- `LOCAL_TOWER_EXPIRY = 1 minute`: The time it takes for knowledge of local
+  tower to expire.
+
+- `TOWER_ODD_BITS = 10`: The odds for a node to be a tower are
+    2^(-TOWER_ODD_BITS).
+
 
 
 ## The towers selection functions
@@ -130,30 +146,16 @@ words, given some time `t_0` there is some color `c_0` such that `tcolor(c_0,t_0
 
 Next we define:
 
+```rust
+h(color, time) := sha256("AA" | tcolor(color, time) | 
+                            "BB" | color)
+
+isTower(nodeId, color, time) := sha256("CC" |  
+                    h(color, time) | "DD" | sha256(nodeId)) 
+                        < 2^(256 - TOWER_ODDS_BITS)
 ```
-h(color, index, time) := sha256("AA" | tcolor(color, time) | 
-                            "BB" | color | "CC" | index )
 
-towerNodeMatch(nodeId, color, index, time) := sha256("DD" |  
-                    h(color, index, time) | "EE" | sha256(nodeId))
-```
-
-
-During time `time`, the tower with color `c` and index `i` is the node that
-minimizes the value of `towerNodeMatch(nodeId, c, i, time)` (Considered as a
-number in big endian notation). If there is a tie, the value $nodeId$ is used as
-a tie breaker.
-
-## Protocol constants
-
-- `SYM_KEY_CACHE_TIME = 30 minutes`: maximum amount of time an entry could be
-  kept in symKeyMap cache.
-
-- `MESSAGE_CACHE_TIME = 1 minute`: the maximum amount of time an entry could
-  be kept in the messageCacheMap cache.
-
-- `LOCAL_TOWER_EXPIRY = 1 minute`: The time it takes for knowledge of local
-  tower to expire.
+During time `time`, a node `nodeId` is a tower of color `c` if `isTower(nodeId, color, time)` is true.
 
 
 ## Maintained data structures for every node
@@ -194,11 +196,15 @@ Nodes that are towers also maintain the following:
     Path to registered node.
 
 
-- For every tower (color, index):
-    - tower[(color, index)].distance
-    Distance to remote tower.
+- For every tower (nodeId):
+    - tower[nodeId].color
+    The color of the remote tower.
 
-    - tower[(color, index)].gateways 
+    - tower[nodeId].distance
+    Distance to remote tower. This is the length of the shortest path known to
+    the remote tower.
+
+    - tower[nodeId].gateways 
     Gateways to remote tower. Each gateway is a color of a local tower.
 
 
@@ -209,7 +215,7 @@ myNodeId.
 
 
 ### Receipt of external SendMessage (remoteId, datagramData):
-```python
+```rust
 - Pick a set of three random tower colors: rcolors.
 - for towerColor in rcolors:
     - Send a SendMessageLocalTower(towerColor, remoteId, datagramData) to a
@@ -218,8 +224,8 @@ myNodeId.
 
 ### Receipt of SendMessageLocalTower(towerColor, destNodeId, content):
 
-```python
-- If localTower[towerColor].towerNodeId != myNodeId:
+```rust
+- if localTower[towerColor].towerNodeId != myNodeId:
     - gatewayId, timestamp  <-- Sample randomly from 
         localTower[towerColor].gateways
     - Send SendMessageLocalTower(towerColor, destNodeId, content) to the
@@ -233,7 +239,7 @@ myNodeId.
 
 ### Receipt of MessageReceivedLocalTower(nodeIdPath, encContent):
 
-```python
+```rust
 - if nodeIdPath != []
     - nextNode <-- nodeIdPath[-1]
     - Send a MessageReceivedLocalTower(nodeIdPath[:-1], encContent) to the
@@ -264,9 +270,9 @@ myNodeId.
 ```
 
 
-### Receipt of UpdatedLocalTowerPath(towerColor, towerIndex, SignedPathFromTower):
+### Receipt of UpdatedLocalTowerPath(towerColor, SignedPathFromTower):
 
-```python
+```rust
 - if curTime - SignedPathFromTower.timestamp > `LOCAL_TOWER_EXPIRY`
     - return
 
@@ -278,33 +284,24 @@ myNodeId.
 - towerNodeId   <-- first nodeId on the path.
 - timestamp     <-- path timestamp.
 
+- if not isTower(towerNodeId, color, curTime):
+    - return
+
 - Remove gateways from `localTower[towerColor].gateways` that are older than
   `LOCAL_TOWER_EXPIRY`.
 
 - if len(localTower[towerColor].gateways) == 0:
-    - localTower[towerColor].distance       <-- 0
-    - localTower[towerColor].gateways       <-- set{}
-    - localTower[towerColor].towerNodeId    <-- myNodeId
+    - localTower[towerColor] <-- None
 
-- oldNodeMatch  <-- towerNodeMatch(localTower[towerColor].towerNodeId,
-                      towerColor, towerIndex, curTime)
-- newNodeMatch  <-- towerNodeMatch(towerNodeId,
-                      towerColor, towerIndex, curTime)
-
-- if oldNodeMatch > newNodeMatch:
-    - return
-
-- if oldNodeMatch < newNodeMatch:
-    localTower[towerColor].distance     <-- distance
-    localTower[towerColor].gateways     <-- set{(gateway, timestamp)}
-    localTower[towerColor].towerNodeId  <-- towerNodeId
+- if localTower[TowerColor] is None:
+    - localTower[towerColor].distance       <-- distance
+    - localTower[towerColor].gateways       <-- set{(gateway, timestamp)}
+    - localTower[towerColor].towerNodeId    <-- towerNodeId
 
     - for neighborId in neighbors:
-        - send UpdatedLocalTowerPath(towerColor, towerIndex, SignedPathFromTower
+        - send UpdatedLocalTowerPath(towerColor, SignedPathFromTower
             + (neighborId, sign{myNodeId}(neighborId, prev)) )
     - return
-
-// Here oldNodeMatch == newNodeMatch:
 
 - if distance > localTower[towerColor].distance:
     - return
@@ -315,14 +312,14 @@ myNodeId.
     - localTower[towerColor].towerNodeId    <-- towerNodeId
 
     - for neighborId in neighbors:
-        - send UpdatedLocalTowerPath(towerColor, towerIndex, SignedPathFromTower
+        - send UpdatedLocalTowerPath(towerColor, SignedPathFromTower
             + (neighborId, sign{myNodeId}(neighborId, prev)) )
     - return
 
 - if distance == localTower[towerColor].distance:
     - localTower[towerColor].gateways.insert((gateway, timestamp))
     - for neighborId in neighbors:
-        - send UpdatedLocalTowerPath(towerColor, towerIndex, SignedPathFromTower
+        - send UpdatedLocalTowerPath(towerColor, SignedPathFromTower
             + (neighborId, sign{myNodeId}(neighborId, prev)) )
     - return
 ```
