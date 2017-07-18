@@ -120,29 +120,31 @@ messages quickly between towers.
 - `LOCAL_TOWER_EXPIRY = 1 minute`: The time it takes for knowledge of local
   tower to expire.
 
-- `TOWER_ODD_BITS = 10`: The odds for a node to be a tower are
-    2^(-TOWER_ODD_BITS).
+- `TOWER_ODD_BITS = 10`: The odds for a node to be a tower of a specific color
+  are 2^(-TOWER_ODD_BITS).
 
+- `TOWER_TIME_BLOCK = 900`: 900 seconds, or 15 minutes. Every
+  `TOWER_TIME_BLOCK` minutes towers of some color are replaced.
+
+- `NUM_COLORS = 32`.
+  `NUM_COLORS >= 3*log(n * 2^(-TOWER_ODD_BITS) * NUM_COLORS)`
 
 
 ## The towers selection functions
 
 We assume that every node in the network has access to the current time in UTC
-form. Given the current time (in seconds since epoch), $time$, we define:
+form. Given the current time (in seconds since epoch), `time`, we define:
 
+```rust
+tcolor(color, time) := ((time / TOWER_TIME_BLOCK) + color) / NUM_COLORS
 ```
-tcolor(color, time) := ((time / timeBlock) + color) / numColors
-```
 
-We choose timeBlock to be `900` seconds, which are 15 minutes. We also choose
-`numColors` to be the first power of `2` that is greater or equal than
-`2 * log(sqrt(n))`, assuming that `n` is the amount of nodes in the network. 
-(Chosen for connectivity of towers). `0 <= color < numColors`.
+Where `0 <= color < NUM_COLORS`.
 
-For every passage of `timeBlock`, the tcolor of only one color changes. In other
+For every passage of `TOWER_TIME_BLOCK`, the tcolor of only one color changes. In other
 words, given some time `t_0` there is some color `c_0` such that `tcolor(c_0,t_0) +
-1 = tcolor(c_0, t_0 + timeBlock)`, and for every `c != c_0` we get that
-`tcolor(c,t_0) = tcolor(c, t_0 + timeBlock)`.
+1 = tcolor(c_0, t_0 + TOWER_TIME_BLOCK)`, and for every `c != c_0` we get that
+`tcolor(c,t_0) = tcolor(c, t_0 + TOWER_TIME_BLOCK)`.
 
 Next we define:
 
@@ -155,7 +157,8 @@ isTower(nodeId, color, time) := sha256("CC" |
                         < 2^(256 - TOWER_ODDS_BITS)
 ```
 
-During time `time`, a node `nodeId` is a tower of color `c` if `isTower(nodeId, color, time)` is true.
+During time `time`, a node `nodeId` is a tower of color `c` if `isTower(nodeId,
+color, time)` is true.
 
 
 ## Maintained data structures for every node
