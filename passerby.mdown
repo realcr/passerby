@@ -209,13 +209,16 @@ myNodeId.
 
 
 ### Receipt of external SendMessage (remoteId, datagramData):
+```python
 - Pick a set of three random tower colors: rcolors.
 - for towerColor in rcolors:
     - Send a SendMessageLocalTower(towerColor, remoteId, datagramData) to a
       random gateway from the set localTower[towerColor].gateways.
+```
 
 ### Receipt of SendMessageLocalTower(towerColor, destNodeId, content):
 
+```python
 - If localTower[towerColor].towerNodeId != myNodeId:
     - gatewayId, timestamp  <-- Sample randomly from 
         localTower[towerColor].gateways
@@ -225,9 +228,12 @@ myNodeId.
 
 - Send LookupIdRequest(towerColor, 
     TODO: Not done here.
+```
 
 
 ### Receipt of MessageReceivedLocalTower(nodeIdPath, encContent):
+
+```python
 - if nodeIdPath != []
     - nextNode <-- nodeIdPath[-1]
     - Send a MessageReceivedLocalTower(nodeIdPath[:-1], encContent) to the
@@ -255,10 +261,12 @@ myNodeId.
 - messageCacheMap[encMsgHash] <-- timestamp
 
 - Send external MessageReceived(senderPublicKey, datagramData)
+```
 
 
 ### Receipt of UpdatedLocalTowerPath(towerColor, towerIndex, SignedPathFromTower):
 
+```python
 - if curTime - SignedPathFromTower.timestamp > `LOCAL_TOWER_EXPIRY`
     - return
 
@@ -317,6 +325,7 @@ myNodeId.
         - send UpdatedLocalTowerPath(towerColor, towerIndex, SignedPathFromTower
             + (neighborId, sign{myNodeId}(neighborId, prev)) )
     - return
+```
 
 
 ### Receipt of RegisterLocalTower(towerColor, SignedPathToTower):
