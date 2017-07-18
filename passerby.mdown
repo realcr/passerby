@@ -123,11 +123,12 @@ messages quickly between towers.
 - `TOWER_ODD_BITS = 10`: The odds for a node to be a tower of a specific color
   are 2^(-TOWER_ODD_BITS).
 
+- `NUM_COLORS = 32`.
+  `NUM_COLORS >= 3*log(n * 2^(-TOWER_ODD_BITS) * NUM_COLORS)`
+
 - `TOWER_TIME_BLOCK = 900`: 900 seconds, or 15 minutes. Every
   `TOWER_TIME_BLOCK` minutes towers of some color are replaced.
 
-- `NUM_COLORS = 32`.
-  `NUM_COLORS >= 3*log(n * 2^(-TOWER_ODD_BITS) * NUM_COLORS)`
 
 
 ## The towers selection functions
