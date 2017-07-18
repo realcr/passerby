@@ -214,6 +214,18 @@ myNodeId.
     - Send a SendMessageLocalTower(towerColor, remoteId, datagramData) to a
       random gateway from the set localTower[towerColor].gateways.
 
+### Receipt of SendMessageLocalTower(towerColor, destNodeId, content):
+
+- If localTower[towerColor].towerNodeId != myNodeId:
+    - gatewayId, timestamp  <-- Sample randomly from 
+        localTower[towerColor].gateways
+    - Send SendMessageLocalTower(towerColor, destNodeId, content) to the
+      neighbor gatewayId.
+    - return
+
+- Send LookupIdRequest(towerColor, 
+    TODO: Not done here.
+
 
 ### Receipt of MessageReceivedLocalTower(nodeIdPath, encContent):
 - if nodeIdPath != []
@@ -263,7 +275,7 @@ myNodeId.
 
 - if len(localTower[towerColor].gateways) == 0:
     - localTower[towerColor].distance       <-- 0
-    - localTower[towerColor].gateways       <-- {}
+    - localTower[towerColor].gateways       <-- set{}
     - localTower[towerColor].towerNodeId    <-- myNodeId
 
 - oldNodeMatch  <-- towerNodeMatch(localTower[towerColor].towerNodeId,
@@ -308,6 +320,7 @@ myNodeId.
 
 
 ### Receipt of RegisterLocalTower(towerColor, SignedPathToTower):
+
 
 
 
