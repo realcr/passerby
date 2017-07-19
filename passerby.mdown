@@ -98,6 +98,9 @@ messages quickly between towers.
   all towers in the network to know a path to originTowerId.
   This message is transferred using local tower based paths between towers.
 
+- **StoreLookupId**(towerColor, SignedPathFromNode)
+  Store ownership of nodeId in a tower. Allows for lookup later.
+
 - **LookupIdRequest**(RequesterTowerColor, RequesterTowerId, nodeId)
   Find out which tower is responsible for the node nodeId.
 
