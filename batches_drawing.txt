@@ -1,0 +1,16 @@
+@ @ @ @ @ @ @ @ @ @ @ @ @ @
+* * *|* * *|* * *|* * *|* *
+*|* * *|* * *|* * *|* * *|*
+* *|* * *|* * *|* * *|* * *|
+
+
+@ @ @ @ @ @ @ @ @ @ @ @ @ @
+* *|* *|* *|* *|* *|* *|* *|
+*|* *|* *|* *|* *|* *|* *|*
+    
+    
+- 15 minutes approximating amount of nodes   | - 30 minutes routing using routers
+- 15 minutes converging towers               | - 
+- 30 minutes routing using towers.           | - 15 minutes approximating amount of nodes
+-                                            | - 15 minutes converging towers
+  
