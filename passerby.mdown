@@ -46,6 +46,12 @@ The Passerby router has direct reliable TCP like connections to various nodes,
 implemented somehow. For any direct connection with a neighboring node, the
 following messages can be transferred:
 
+- **LowestNodes**(batch, time, nodeList)
+  nodeList is a list with elements of the form:
+  (nodeId, sign{nodeId}(timestamp))
+  This message is sent periodically between neighboring nodes. The lowest node
+  ids are used to approximate the amount of nodes in the network.
+
 - **UpdatedLocalTowerPath**(towerColor, SignedPathFromTower)
   Used both for new choice of a local tower, or changes in the network
   layout. This message is sent periodically, originating from tower nodes.
@@ -123,19 +129,34 @@ messages quickly between towers.
 - `LOCAL_TOWER_EXPIRY = 1 minute`: The time it takes for knowledge of local
   tower to expire.
 
-- `TOWER_ODD_BITS = 10`: The odds for a node to be a tower of a specific color
+- `TOWER_ODD_BITS = 15`: The odds for a node to be a tower of a specific color
   are 2^(-TOWER_ODD_BITS).
 
-- `NUM_COLORS = 32`.
-  `NUM_COLORS >= 3*log(n * 2^(-TOWER_ODD_BITS) * NUM_COLORS)`
+- `NUM_COLORS = 32`: Amount of colors available for towers.
 
-TODO: Fix calculations above, and fix calculations in the definition of the
-isTower function.
-
-- `TOWER_TIME_BLOCK = 900`: 900 seconds, or 15 minutes. Every
-  `TOWER_TIME_BLOCK` minutes towers of some color are replaced.
+- `TOWER_TIME_BLOCK = 15 minutes`: Every
+  such period towers of some color are replaced.
 
 
+- `BATCH_TIME = 60 minutes`: Every such period of time
+  a batch of network size approximation passes.
+
+- `NET_APPROX_TIME = 15 minutes`: Time to approximate the amount of nodes in
+  the network.
+
+- `TOWER_CONVERGE_TIME = 15 minutes`: Time for convergence of towers
+  information.
+
+
+
+## Batch functions
+
+```rust
+Get the batchIndex of the current batch used for routing:
+routingBatchIndex(time) := (time / (BATCH_TIME / 2)) % 2
+
+loadingBatchIndex(time) := 1 - routingBatchIndex(time)
+```
 
 ## The towers selection functions
 
@@ -159,9 +180,9 @@ Next we define:
 h(color, time) := sha256("AA" | tcolor(color, time) | 
                             "BB" | color)
 
-isTower(nodeId, color, time) := sha256("CC" |  
-                    h(color, time) | "DD" | sha256(nodeId)) 
-                        < 2^(256 - TOWER_ODDS_BITS)
+isTower(nodeId, batchIndex, color, time) := sha256("CC" |  
+                    h(color, time) | "DD" | sha256(nodeId) |
+                    "EE" | batchIndex) < 2^(256 - TOWER_ODDS_BITS)
 ```
 
 During time `time`, a node `nodeId` is a tower of color `c` if `isTower(nodeId,
@@ -170,7 +191,16 @@ color, time)` is true.
 
 ## Maintained data structures for every node
 
-Every node should keep the following:
+Every node should keep the following as batch[batchIndex]:
+
+Information about network size approximation:
+
+- lowestNodesLoading[lowestIndex]
+A lowest known node for every index. Belongs to the loading batch.
+
+- lowestNodesRouting[lowestIndex]
+A lowest known node for every index. Belongs to the routing batch.
+
 
 Information about local towers (Closest for each color):
 - localTower[color].distance
