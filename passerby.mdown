@@ -147,6 +147,7 @@ messages quickly between towers.
 - `TOWER_CONVERGE_TIME = 15 minutes`: Time for convergence of towers
   information.
 
+- `NUM_HEIGHT_FUNCS = 40`: Amount of random functions from nodeId into [0,1]
 
 
 ## Batch functions
@@ -177,16 +178,36 @@ words, given some time `t_0` there is some color `c_0` such that `tcolor(c_0,t_0
 Next we define:
 
 ```rust
-h(color, time) := sha256("AA" | tcolor(color, time) | 
-                            "BB" | color)
+h(color, time) := sha256("AA" || tcolor(color, time) ||
+                            "BB" || color)
 
 isTower(nodeId, batchIndex, color, time) := sha256("CC" |  
-                    h(color, time) | "DD" | sha256(nodeId) |
-                    "EE" | batchIndex) < 2^(256 - TOWER_ODDS_BITS)
+                    h(color, time) || "DD" || sha256(nodeId) ||
+                    "EE" || batchIndex) < 2^(256 - TOWER_ODDS_BITS)
 ```
 
 During time `time`, a node `nodeId` is a tower of color `c` if `isTower(nodeId,
 color, time)` is true.
+
+
+## Network approximation functions
+
+During the approximation of the network size we find the "height" of every node
+in the network. There are `NUM_HEIGHT_FUNCS` random hash functions. We calculate
+them as follows:
+
+```rust
+nodeHeight(heightIndex, nodeId) = sha256("FF" || heightIndex || 
+                                    "EE" || sha256(nodeId))
+```
+
+Using the height of the "lowest" nodes in the network we calculate an
+approximation to the amount of nodes in the network.
+
+TODO: Use some known proved algorithm to get an approximation algorithm here:
+```rust
+approxNumNodes(heights) := ?
+```
 
 
 ## Maintained data structures for every node
@@ -195,35 +216,38 @@ Every node should keep the following as batch[batchIndex]:
 
 Information about network size approximation:
 
-- lowestNodesLoading[lowestIndex]
-A lowest known node for every index. Belongs to the loading batch.
+- lowestNodes[heightIndex]
+  A lowest known node for every index. May only be changed during the net
+  approx time frame of the relevant batch.
 
-- lowestNodesRouting[lowestIndex]
-A lowest known node for every index. Belongs to the routing batch.
-
+- numNodesApprox
+  An approximation for the amount of nodes in the network. Calculated from
+  lowestNodes, after the net approx time frame has ended.
 
 Information about local towers (Closest for each color):
+
 - localTower[color].distance
-Shortest known distance to this local tower.
+  Shortest known distance to this local tower.
 
 - localTower[color].gateways 
-A list of neighboring nodes: (nodeId, timestamp)
+  A list of neighboring nodes: (nodeId, timestamp)
 
 - localTower[color].towerNodeId: 
-The nodeId of the local tower.
+  The nodeId of the local tower.
 
 
 Cache for receiving encrypted messages:
-- symKeyMap[senderNodeId] == (encSymmetricKey, symmetricKey) 
 
-With `SYM_KEY_CACHE_TIME`, maximum amount of time an entry could be kept in
-symKeyMap cache.
+- symKeyMap[senderNodeId] == (encSymmetricKey, symmetricKey) 
+  With `SYM_KEY_CACHE_TIME`, maximum amount of time an entry could be kept in
+  symKeyMap cache.
+
 
 Cache for message replay:
-- messageCacheMap[encMsgHash] == timestamp
 
-With `MESSAGE_CACHE_TIME`, the maximum amount of time an entry could be kept in
-the messageCacheMap cache.
+- messageCacheMap[encMsgHash] == timestamp
+  With `MESSAGE_CACHE_TIME`, the maximum amount of time an entry could be kept in
+  the messageCacheMap cache.
 
 
 Nodes that are towers also maintain the following:
