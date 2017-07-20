@@ -100,6 +100,14 @@ The structure for `encContent` in MessageReceivedLocalTower is as follows:
 - encSymmetricKey == Encrypt{key=senderPrivateKey}(symmetricKey)
 - encDatagramData == Encrypt{key=symmetricKey, nonce=random}(timestamp, datagramData)
 
+
+TODO:
+- We should have a canonical way to send messages between two neighboring towers.
+- All messages below will be inserted into this canonical method. 
+- The content probably should be encrypted.
+- Should be like SendMessageLocalTower.
+
+
 ## Messages between towers
 
 The towers are the mechanism used for long range routing of messages.
@@ -505,7 +513,7 @@ TODO
 
 ### Receipt of RegisterLocalTower(towerColor, SignedPathToTower):
 
-
+TODO
 
 
 ## TODO area:
