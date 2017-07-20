@@ -46,11 +46,18 @@ The Passerby router has direct reliable TCP like connections to various nodes,
 implemented somehow. For any direct connection with a neighboring node, the
 following messages can be transferred:
 
-- **LowestNodes**(batch, time, nodeList)
+- **LowestNodes**(nodeList)
   nodeList is a list with elements of the form:
   (nodeId, sign{nodeId}(timestamp))
   This message is sent periodically between neighboring nodes. The lowest node
   ids are used to approximate the amount of nodes in the network.
+
+- **LowestNodesPinned**(batchStartTime, nodeList)
+  nodeList is a list with elements of the form:
+  (nodeId, sign{nodeId}(timestamp))
+  This message is sent during `NET_APPROX_TIME` time period between nodes.
+  batchStartTime is the start time of the batch for which those pinned lowest
+  nodes belong to.
 
 - **UpdatedLocalTowerPath**(towerColor, SignedPathFromTower)
   Used both for new choice of a local tower, or changes in the network
@@ -141,10 +148,10 @@ messages quickly between towers.
 - `BATCH_TIME = 60 minutes`: Every such period of time
   a batch of network size approximation passes.
 
-- `NET_APPROX_TIME = 15 minutes`: Time to approximate the amount of nodes in
+- `NET_APPROX_TIME = 5 minutes`: Time to approximate the amount of nodes in
   the network.
 
-- `TOWER_CONVERGE_TIME = 15 minutes`: Time for convergence of towers
+- `TOWER_CONVERGE_TIME = 10 minutes`: Time for convergence of towers
   information.
 
 - `NUM_HEIGHT_FUNCS = 40`: Amount of random functions from nodeId into [0,1]
@@ -154,6 +161,7 @@ messages quickly between towers.
 
 ```rust
 Get the batchIndex of the current batch used for routing:
+TODO: Check that this is still working:
 routingBatchIndex(time) := (time / (BATCH_TIME / 2)) % 2
 
 loadingBatchIndex(time) := 1 - routingBatchIndex(time)
@@ -217,11 +225,32 @@ sketch-of-the-day-hyperloglog-cornerstone-of-a-big-data-infrastructure/)
 
 ## Maintained data structures for every node
 
-Every node should keep the following as batch[batchIndex]:
+Every node should keep the following:
+
+- lowestNodes[heightIndex]
+  A lowest known node for every index. These will be used for approximating the
+  amount of nodes in the network.
+
+
+Cache for receiving encrypted messages:
+
+- symKeyMap[senderNodeId] == (encSymmetricKey, symmetricKey) 
+  With `SYM_KEY_CACHE_TIME`, maximum amount of time an entry could be kept in
+  symKeyMap cache.
+
+
+Cache for message replay:
+
+- messageCacheMap[encMsgHash] == timestamp
+  With `MESSAGE_CACHE_TIME`, the maximum amount of time an entry could be kept in
+  the messageCacheMap cache.
+
+
+The following information is kept inside the structure batch[batchIndex]:
 
 Information about network size approximation:
 
-- lowestNodes[heightIndex]
+- lowestNodesPinned[heightIndex]
   A lowest known node for every index. May only be changed during the net
   approx time frame of the relevant batch.
 
@@ -241,21 +270,8 @@ Information about local towers (Closest for each color):
   The nodeId of the local tower.
 
 
-Cache for receiving encrypted messages:
 
-- symKeyMap[senderNodeId] == (encSymmetricKey, symmetricKey) 
-  With `SYM_KEY_CACHE_TIME`, maximum amount of time an entry could be kept in
-  symKeyMap cache.
-
-
-Cache for message replay:
-
-- messageCacheMap[encMsgHash] == timestamp
-  With `MESSAGE_CACHE_TIME`, the maximum amount of time an entry could be kept in
-  the messageCacheMap cache.
-
-
-Nodes that are towers also maintain the following:
+Nodes that are towers also maintain the following for every batch:
 
 - For every registered node:
     - registered[nodeId].registrationTime 
@@ -263,7 +279,6 @@ Nodes that are towers also maintain the following:
 
     - registered[nodeId].path
     Path to registered node.
-
 
 - For every tower (nodeId):
     - tower[nodeId].color
@@ -277,6 +292,64 @@ Nodes that are towers also maintain the following:
     Gateways to remote tower. Each gateway is a color of a local tower.
 
 
+## Division of time in a single batch
+
+For the operation of this protocol we assume some ability to synchronize time
+between nodes. Note that this assumption is generally not valid for a strong
+adversary. We assume that all nodes have a similar clock: the global UTC time. 
+
+We choose the amount of towers based on an approximation of the amount of nodes
+in the network. To avoid routing disruptions whenever a new approximation is
+calculated, we perform the network size approximation in batches. At every
+moment every node is taking part in two batches that run simultaneously (in
+different stages), to make sure that routing is always operational.
+
+A batch runs for `BATCH_TIME` minutes. It is divided to the following parts:
+
+
+```
+|---- NET_APPROX_TIME ----|-- TOWER_CONVERGENCE_TIME --|-- operational routing --|
+```
+
+If we denote by `=` the `NET_APPROX_TIME` period, by `*` the
+`TOWER_CONVERGENCE_TIME` period and by `=` the "operational routing" period, we
+should get a time diagram as follows for the two batches:
+
+```
+                    ---[time]--->
+
+batch0:    ... =@****=@****=@****=@****=@**** ...
+batch1: ... =@****=@****=@****=@****=@**** ...
+
+```
+
+Note that all times there is at least one batch in operational routing mode.
+In addition, during the transitions between batches, the old batch is still in
+operational routing mode.
+
+The time period marked with `NET_APPROX_TIME` is the time where the network
+size is approximated. In the beginning of this period, every node keeps a
+snapshot of lowestNodes as lowestNodesPinned for the relevant batchIndex, and
+then sends it to all of his neighbors. If a node encounters a better candidate
+for lowestNodesPinned, he updates it and notifies his neighbors. 
+
+In the end of `NET_APPROX_TIME` time period, lowestNodesPinned can not be
+changed anymore. Hopefully it will be the same for all the nodes in the
+network. `lowestNodesPinned` is then used to calculate `numNodesApprox`
+is an approximation to the amount of nodes in the network. This is done by
+applying the function `approxNumNodes`.
+
+During `TOWER_CONVERGENCE_TIME`, nodes send each other the messages:
+UpdatedLocalTowerPath and RegisterLocalTower. Nodes that are towers send
+UpdatedTowerPath and StoreLookupId to each other. 
+
+No user datagrams may be sent or received on this batch during the
+`NET_APPROX_TIME` and `TOWER_CONVERGENCE_TIME` periods. 
+
+During the "operational routing" period, this batch becomes usable for routing
+and user datagrams may be routed.
+
+
 ## Algorithm for every node
 
 The following represents an algorithm of operation for a node with node id
@@ -285,6 +358,7 @@ myNodeId.
 
 ### Receipt of external SendMessage (remoteId, datagramData):
 ```rust
+- Use the current "operational routing" batch.
 - Pick a set of three random tower colors: rcolors.
 - for towerColor in rcolors:
     - Send a SendMessageLocalTower(towerColor, remoteId, datagramData) to a
@@ -294,15 +368,13 @@ myNodeId.
 ### Receipt of SendMessageLocalTower(towerColor, destNodeId, content):
 
 ```rust
+- Use the current "operational routing" batch.
 - if localTower[towerColor].towerNodeId != myNodeId:
     - gatewayId, timestamp  <-- Sample randomly from 
         localTower[towerColor].gateways
     - Send SendMessageLocalTower(towerColor, destNodeId, content) to the
       neighbor gatewayId.
     - return
-
-- Send LookupIdRequest(towerColor, 
-    TODO: Not done here.
 ```
 
 
