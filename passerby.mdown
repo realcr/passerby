@@ -197,17 +197,22 @@ in the network. There are `NUM_HEIGHT_FUNCS` random hash functions. We calculate
 them as follows:
 
 ```rust
-nodeHeight(heightIndex, nodeId) = sha256("FF" || heightIndex || 
-                                    "EE" || sha256(nodeId))
+nodeHeight(heightIndex, nodeId) = (1 / num(sha256("FF" || heightIndex || 
+                                    "EE" || sha256(nodeId)))) - 1
 ```
 
 Using the height of the "lowest" nodes in the network we calculate an
 approximation to the amount of nodes in the network.
 
-TODO: Use some known proved algorithm to get an approximation algorithm here:
 ```rust
-approxNumNodes(heights) := ?
+approxNumNodes(heights) := harmonicMean(heights)
 ```
+
+See also:
+[demofox's blug](https://blog.demofox.org/2015/02/03/
+estimating-counts-of-distinct-values-with-kmv/)
+[sketch the day hyperloglog](https://research.neustar.biz/2012/10/25/
+sketch-of-the-day-hyperloglog-cornerstone-of-a-big-data-infrastructure/)
 
 
 ## Maintained data structures for every node
