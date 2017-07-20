@@ -83,7 +83,7 @@ following messages can be transferred:
   The local tower will keep knowledge of paths to all nodes in the given
   chain of signatures.
 
-- **SendMessageLocalTower**(towerColor, destNodeId, content)
+- **SendMessageLocalTower**(towerColor, destNodeId, encContent)
   Send a message with given content to a destination id.
   This message will be first passed to the closest local Tower of color
   towerColor. The towers will then handle the messages delivery. This message
@@ -114,14 +114,15 @@ messages quickly between towers.
 - **StoreLookupId**(towerColor, SignedPathFromNode)
   Store ownership of nodeId in a tower. Allows for lookup later.
 
-- **LookupIdRequest**(RequesterTowerColor, RequesterTowerId, nodeId)
+- **LookupIdRequest**(requesterTowerColor, requesterTowerId, nodeId)
   Find out which tower is responsible for the node nodeId.
 
-- **LookupIdResponse**(RequesterTowerColor, RequesterTowerId, nodeId, 
-  [(TowerColor, TowerId)])$
+- **LookupIdResponse**(requesterTowerColor, requesterTowerId, nodeId, 
+  towerList of (towerColor, towerId))$
   Respond with the list of towers that have responsibility for nodeId.
 
-- **RouteMessage**(destTowerColor, destTowerId, destNodeId, encContent)
+- **RouteMessage**(nextTowerColor, destTowerColor, destTowerId, 
+       destNodeId, encContent)
   Route a message between towers until it arrives at destTowerId.
   (Then destTowerId will send a MessageReceivedLocalTower to destNodeId)
 
@@ -288,7 +289,7 @@ Nodes that are towers also maintain the following for every batch:
     Distance to remote tower. This is the length of the shortest path known to
     the remote tower.
 
-    - tower[nodeId].gateways 
+    - tower[nodeId].colorGateways 
     Gateways to remote tower. Each gateway is a color of a local tower.
 
 
@@ -374,19 +375,32 @@ TODO
 TODO
 
 
-### Receipt of SendMessageLocalTower(towerColor, destNodeId, content):
+### Receipt of SendMessageLocalTower(towerColor, destNodeId, encContent):
 
 ```rust
 - Use the current "operational routing" batch.
 - if localTower[towerColor].towerNodeId != myNodeId:
     - gatewayId, timestamp  <-- Sample randomly from 
         localTower[towerColor].gateways
-    - Send SendMessageLocalTower(towerColor, destNodeId, content) to the
+    - Send SendMessageLocalTower(towerColor, destNodeId, encContent) to the
       neighbor gatewayId.
     - return
-// TODO: Add here the case of handling as a tower.
-```
 
+// Here if we are a tower:
+
+- Send LookupIdRequest(towerColor, myNodeId, destNodeId)
+- Wait for 
+    LookupIdResponse(requesterTowerColor, requesterTowerId, nodeId, towerList)
+  with  requesterTowerColor == towerColor &&
+        requesterTowerId == myNodeId &&
+        nodeId == destNodeId
+
+- (rTowerColor, rTowerId) <-- Sample randomly from towerList
+- colorGateway <-- sample randomly from tower[rTowerId].colorGateways
+- gateway <-- sample randomly from localTower[colorGateway].gateways
+- Send RouteMessage(colorGateway, rTowerColor, rTowerId, 
+       destNodeId, encContent) to gateway
+```
 
 ### Receipt of MessageReceivedLocalTower(nodeIdPath, encContent):
 
