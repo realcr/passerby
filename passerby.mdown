@@ -48,13 +48,13 @@ following messages can be transferred:
 
 - **LowestNodes**(nodeList)
   nodeList is a list with elements of the form:
-  (nodeId, sign{nodeId}(timestamp))
+  (heightIndex, nodeId, timestamp, sign{nodeId}(timestamp))
   This message is sent periodically between neighboring nodes. The lowest node
   ids are used to approximate the amount of nodes in the network.
 
 - **LowestNodesPinned**(batchStartTime, nodeList)
   nodeList is a list with elements of the form:
-  (nodeId, sign{nodeId}(timestamp))
+  (heightIndex, nodeId, timestamp, sign{nodeId}(timestamp))
   This message is sent during `NET_APPROX_TIME` time period between nodes.
   batchStartTime is the start time of the batch for which those pinned lowest
   nodes belong to.
@@ -228,7 +228,7 @@ sketch-of-the-day-hyperloglog-cornerstone-of-a-big-data-infrastructure/)
 
 Every node should keep the following:
 
-- lowestNodes[heightIndex]
+- lowestNodes[heightIndex] = (nodeId, timestamp, signature)
   A lowest known node for every index. These will be used for approximating the
   amount of nodes in the network.
 
@@ -368,7 +368,20 @@ myNodeId.
 
 ### Receipt of LowestNodes(nodeList):
 
-TODO
+```rust
+- updatedIndices = {}
+- for (heightIndex, nodeId, timestamp, signature) in nodeList:
+    - if signature is not a valid signature of timestamp by nodeId:
+    -   continue
+    - oldHeight <-- nodeHeight(heightIndex, lowestNodes[heightIndex])
+    - newHeight <-- nodeHeight(heightIndex, nodeId)
+    - if (newHeight, nodeId) < (oldHeight, lowestNodes[heightIndex]):
+        - lowestNodes[heightIndex] <-- (nodeId, timestamp, signature)
+        - updatedIndices.insert(heightIndex)
+
+- for neighbor in neighbors:
+    - Send LowestNodes((i, lowestNodes[i]) for i in updatedIndices) to neighbor
+```
 
 ### Receipt of LowestNodesPinned(batchStartTime, nodeList):
 
@@ -378,7 +391,7 @@ TODO
 ### Receipt of SendMessageLocalTower(towerColor, destNodeId, encContent):
 
 ```rust
-- Use the current "operational routing" batch.
+- use the current "operational routing" batch.
 - if localTower[towerColor].towerNodeId != myNodeId:
     - gatewayId, timestamp  <-- Sample randomly from 
         localTower[towerColor].gateways
