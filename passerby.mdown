@@ -365,6 +365,15 @@ myNodeId.
       random gateway from the set localTower[towerColor].gateways.
 ```
 
+### Receipt of LowestNodes(nodeList):
+
+TODO
+
+### Receipt of LowestNodesPinned(batchStartTime, nodeList):
+
+TODO
+
+
 ### Receipt of SendMessageLocalTower(towerColor, destNodeId, content):
 
 ```rust
@@ -375,6 +384,7 @@ myNodeId.
     - Send SendMessageLocalTower(towerColor, destNodeId, content) to the
       neighbor gatewayId.
     - return
+// TODO: Add here the case of handling as a tower.
 ```
 
 
