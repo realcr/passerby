@@ -101,11 +101,22 @@ The structure for `encContent` in MessageReceivedLocalTower is as follows:
 - encDatagramData == Encrypt{key=symmetricKey, nonce=random}(timestamp, datagramData)
 
 
+- **TowerHop**(destTowerColor, srcTowerId, towerContent, 
+        sign{srcTowerId}(towerContent))
+  A message between two adjacent towers.
+
+
 TODO:
 - We should have a canonical way to send messages between two neighboring towers.
 - All messages below will be inserted into this canonical method. 
 - The content probably should be encrypted.
 - Should be like SendMessageLocalTower.
+
+TODO: 
+The result of all connections between towers is a directed graph (It is
+possible that a blue tower keeps contact with some red tower, but the red tower
+doesn't know the blue tower (He has a better blue tower). Is this directed
+graph always strongly connected? This should be checked.
 
 
 ## Messages between towers
