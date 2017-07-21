@@ -393,6 +393,9 @@ myNodeId.
 
 ### Receipt of LowestNodesPinned(batchStartTime, nodeList):
 
+```rust
+```
+
 TODO
 
 
