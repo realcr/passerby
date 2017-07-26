@@ -61,7 +61,7 @@ following messages can be transferred:
 
 - **UpdatedLocalTowerPath**(towerColor, SignedPathFromTower)
   Used both for new choice of a local tower, or changes in the network
-  layout. This message is sent periodically, originating from tower nodes.
+  layout. This message is sent periodically, originating from tower nodes 
 
   ```
   localTower,   timestamp                  
@@ -83,16 +83,27 @@ following messages can be transferred:
   The local tower will keep knowledge of paths to all nodes in the given
   chain of signatures.
 
-- **SendMessageLocalTower**(towerColor, destNodeId, encContent)
+- **MsgByTowerColor**(towerColor, senderNodeId, signedContent)
+  Where signedContent is of the form:
+    - timestamp
+    - nonce
+    - msgType
+    - payload
+    - signature: Sign{key=senderNodeId}(all message)
+  This message allows to send content to a local colored tower.
+
+- **MsgByPath**(nodeIdPath, senderNodeId, signedContent)
+  Where nodeIdPath is a path of nodeIds.
+  This message allows to send content to a remote node using a path of nodeIds.
+
+## Messages between nodes and towers
+
+- MsgByTowerColor( **SendMessageLocalTower**(destNodeId, encContent) ) 
   Send a message with given content to a destination id.
-  This message will be first passed to the closest local Tower of color
-  towerColor. The towers will then handle the messages delivery. This message
   originates at some node and arrives at a local tower.
 
-- **MessageReceivedLocalTower**(NodeIdPath, encContent)
+- MsgByPath( **MessageReceivedLocalTower**(encContent) )
   A message received through the local tower with given content.
-  IdPath is a list of Ids that show how to route the message to the correct
-  id (According to the knowledge of the local tower).
   This message originates at a local tower and arrives at the relevant node.
 
 The structure for `encContent` in MessageReceivedLocalTower is as follows:
@@ -101,49 +112,40 @@ The structure for `encContent` in MessageReceivedLocalTower is as follows:
 - encDatagramData == Encrypt{key=symmetricKey, nonce=random}(timestamp, datagramData)
 
 
-- **TowerHop**(destTowerColor, srcTowerId, towerContent, 
-        sign{srcTowerId}(towerContent))
-  A message between two adjacent towers.
-
-
-TODO:
-- We should have a canonical way to send messages between two neighboring towers.
-- All messages below will be inserted into this canonical method. 
-- The content probably should be encrypted.
-- Should be like SendMessageLocalTower.
-
-TODO: 
-The result of all connections between towers is a directed graph (It is
-possible that a blue tower keeps contact with some red tower, but the red tower
-doesn't know the blue tower (He has a better blue tower). Is this directed
-graph always strongly connected? This should be checked.
-
-
 ## Messages between towers
 
 The towers are the mechanism used for long range routing of messages.
 Each tower should know the location of all other towers, to be able to route
 messages quickly between towers.
 
-- **UpdatedTowerPath**(originTowerColor, originTowerId, SignedPathFromTower)
+- MsgByPath( **UpdatedTowerPath**(originTowerColor, originTowerId, SignedPathFromTower))
   A message that is sent periodically from originTowerId. This message allows
   all towers in the network to know a path to originTowerId.
-  This message is transferred using local tower based paths between towers.
+  This message is propagated using paths of registered nodes (Some tower node
+  sends a local tower a RegisterLocalTower message)
 
-- **StoreLookupId**(towerColor, SignedPathFromNode)
+- MsgByTowerColor( **MsgTower**(destTowerNodeId, srcTowerNodeId, signedContent) )
+  Send a message between any two towers. This message is passed between towers
+  until it arrives at the destination tower.
+
+- MsgByTowerColor(MsgTower( 
+    **StoreLookupId**(srcTowerNodeId, SignedPathFromNode) ))
   Store ownership of nodeId in a tower. Allows for lookup later.
+  SignedPathFromNode is a proof that the node nodeId has registered recently
+  with the srcTowerNodeId tower.
 
-- **LookupIdRequest**(requesterTowerColor, requesterTowerId, nodeId)
+- MsgByTowerColor(MsgTower( 
+    **LookupIdRequest**(requesterTowerId, nodeId) ))
   Find out which tower is responsible for the node nodeId.
 
-- **LookupIdResponse**(requesterTowerColor, requesterTowerId, nodeId, 
-  towerList of (towerColor, towerId))$
+- MsgByTowerColor(MsgTower(
+    **LookupIdResponse**(nodeId, towerList of towerId) ))
   Respond with the list of towers that have responsibility for nodeId.
 
-- **RouteMessage**(nextTowerColor, destTowerColor, destTowerId, 
-       destNodeId, encContent)
+- MsgByTowerColor(MsgTower(
+    **RouteMessage**(destNodeId, encContent) ))
   Route a message between towers until it arrives at destTowerId.
-  (Then destTowerId will send a MessageReceivedLocalTower to destNodeId)
+  (Then the receiving tower will send a MessageReceivedLocalTower to destNodeId)
 
 ## Protocol constants
 
@@ -290,15 +292,14 @@ Information about local towers (Closest for each color):
   The nodeId of the local tower.
 
 
-
 Nodes that are towers also maintain the following for every batch:
 
 - For every registered node:
     - registered[nodeId].registrationTime 
     Time of registration
 
-    - registered[nodeId].path
-    Path to registered node.
+    - registered[nodeId].signedPath
+    Signed path to registered node.
 
 - For every tower (nodeId):
     - tower[nodeId].color
