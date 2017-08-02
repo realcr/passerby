@@ -1,35 +1,56 @@
 
 # Passerby messaging system
 By real@freedomlayer.org, freedomlayer research facility.
-15.07.2017
+02.08.2017
 
 ## Abstract
 
-Passerby is an experimental messaging system that allows real time anonymous
-and encrypted messaging. This document describes the protocol being used in
-Passerby.
+Passerby is an experimental datagram routing protocol. We present here the
+ideas of how Passerby protocol works and provide specific details about how to implement it.
 
-## Main goals
+The main goal of the Passerby protocol is passing encrypted messages between nodes in a network with high probability of success.
 
-Main goals of the Passerby system:
+## Core routing algorithm
 
-- Passing messages between people with high probability of success.
-- Encrypting the messages passed between people.
-- Keeping a contact list.
+The Passerby protocol assumes a connected network of nodes. Every node is
+directly connected to a few other nodes in some way. A direct connection could
+be a TCP connection over the internet, a direct wifi connection, a direct
+bluetooth connection or any other type of connection. It is assumed that the
+direct connection two nodes is TCP like: It is reliable and sends messages in
+order.
+
+In order to route messages between nodes in the network, $\sqrt{n}$ random
+nodes are chosen. These nodes are called the "tower" nodes. They make the
+"backbone" of communication. Every tower node is responsible for the
+communication of about $\sqrt{n}$ nodes, and should know at any time short
+paths to all the other $\sqrt{n}$ towers in the network. 
+
+Whenever a node $x$ wants to send a message to some remote node $y$ in the
+network, it sends the message to a close tower, and asks that tower to route
+the message to the remote node. The towers then route the message all the way
+to a tower near $y$. That tower then passes the message to $y$.
+
+In this protocol the towers have to do more work than the regular nodes. All a
+regular node has to do is to maintain contact with $O(\log_{2}{n})$, while a
+tower node should maintain at all times paths to $O(\sqrt{n})$ other towers, and
+keep contact with $O(\sqrt{n}))$ regular nodes around him. In addition, a tower
+is responsible for the communication of $O(\sqrt{n})$ nodes.
 
 
 ## External API messages
 
 Possible messages to send to the Passerby router:
 
-- SendMessage (remoteId, datagramData)
+- SendMessage (remoteNodeIdHash, datagramData)
 
 Possible messages to receive from the Passerby router:
 
-- MessageReceived (remoteId, datagramData)
+- MessageReceived (remoteNodeIdHash, datagramData)
 
-Node ids are of size 120 bits (15 bytes). They are a hash of a public key.
-
+Node id hashes are of size 120 bits (15 bytes). This allows them to fit into
+IPv6 address space of [private
+addresses](https://en.wikipedia.org/wiki/Unique_local_address) (All ipv6
+addresses that begin with the byte 0xfc).
 
 ## Protocol routing messages
 
@@ -239,7 +260,7 @@ approxNumNodes(heights) := harmonicMean(heights)
 ```
 
 See also:
-[demofox's blug](https://blog.demofox.org/2015/02/03/
+[demofox's blog](https://blog.demofox.org/2015/02/03/
 estimating-counts-of-distinct-values-with-kmv/)
 [sketch the day hyperloglog](https://research.neustar.biz/2012/10/25/
 sketch-of-the-day-hyperloglog-cornerstone-of-a-big-data-infrastructure/)
